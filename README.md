@@ -37,6 +37,34 @@ Agent calls endpoint → 402 Payment Required → Pays USDC → Retries → Gets
 
 The client handles the HTTP layer. Integrate your agent's Solana wallet for automated x402 payment.
 
+## MCP Server
+
+SolSigs also ships as an **MCP server** (Model Context Protocol) — AI agents like Claude, Hermes, and Cursor can call SolSigs tools natively without writing any code.
+
+```json
+{
+  "mcpServers": {
+    "solsigs": {
+      "url": "https://solsigs.com/sse",
+      "transport": "sse"
+    }
+  }
+}
+```
+
+**8 MCP tools** — all 7 HTTP endpoints + Polymarket prediction markets:
+
+| Tool | Description | Price |
+|------|-------------|-------|
+| `get_dex_price` | DEX price feed (Jupiter + Birdeye) | $0.002 |
+| `scan_arbitrage` | Cross-DEX arbitrage scanner | $0.010 |
+| `analyze_wallet` | Wallet risk scoring + wash trading detection | $0.005 |
+| `detect_token_launches` | New token launch detection (pump.fun, Raydium) | $0.003 |
+| `get_prediction_market` | Polymarket prediction markets (crypto, politics, sports) | $0.003 |
+| `get_market_summary` | AI-powered on-chain market summary (Groq) | $0.008 |
+| `rpc_relay` | Pay-per-call Helius RPC relay | $0.001 |
+| `wallet_status` | Check MCP wallet USDC/SOL balance | FREE |
+
 ## LangGraph Integration
 
 ```python
@@ -51,7 +79,7 @@ agent = create_react_agent(model, SOLSIGS_LANGGRAPH_TOOLS)
 agent.invoke({"messages": ["What's the current price of BONK?"]})
 ```
 
-## Available Endpoints
+## Available HTTP Endpoints
 
 | Endpoint | Description | Price |
 |----------|-------------|-------|
@@ -59,6 +87,7 @@ agent.invoke({"messages": ["What's the current price of BONK?"]})
 | `/arb` | Arbitrage scanner | $0.010 |
 | `/wallet` | Wallet risk scoring | $0.005 |
 | `/launches` | Early token launch detection | $0.003 |
+| `/predict` | Polymarket prediction markets | $0.003 |
 | `/summary` | AI on-chain data summarization (Groq) | $0.008 |
 | `/rpc` | RPC load balancer | $0.001 |
 
