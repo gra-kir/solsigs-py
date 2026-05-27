@@ -1,0 +1,197 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "SolSigs — Solana Data APIs for AI Agents",
+    "version": "1.0.0",
+    "description": "6 Solana data endpoints paid via x402 micropayments in USDC. No API keys, no subscriptions — agents pay per call.",
+    "x-guidance": "SolSigs provides on-chain Solana data to AI agents. Each endpoint requires x402 payment — send USDC to the specified wallet, pass the tx signature as X-PAYMENT header. The server verifies payment via Helius before returning data. All endpoints are POST. Prices are fixed per call in USDC."
+  },
+  "servers": [
+    { "url": "https://solsigs.com", "description": "Production" }
+  ],
+  "paths": {
+    "/dex": {
+      "post": {
+        "operationId": "getDexPrice",
+        "summary": "DEX Price Feed",
+        "description": "Real-time DEX aggregation (Jupiter + Birdeye). Get best prices in milliseconds.",
+        "x-payment-info": {
+          "price": { "mode": "fixed", "currency": "USDC", "amount": "0.002" },
+          "protocols": [{ "x402": {} }]
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/TokenQuery" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "DEX price data" },
+          "402": { "description": "Payment Required — include X-PAYMENT header with Solana tx signature" }
+        }
+      }
+    },
+    "/arb": {
+      "post": {
+        "operationId": "scanArbitrage",
+        "summary": "Arbitrage Scanner",
+        "description": "Detect arbitrage opportunities across Solana DEXs.",
+        "x-payment-info": {
+          "price": { "mode": "fixed", "currency": "USDC", "amount": "0.010" },
+          "protocols": [{ "x402": {} }]
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ArbQuery" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Arbitrage opportunities" },
+          "402": { "description": "Payment Required" }
+        }
+      }
+    },
+    "/wallet": {
+      "post": {
+        "operationId": "scoreWallet",
+        "summary": "Wallet Intelligence",
+        "description": "Score wallet risk and get activity stats.",
+        "x-payment-info": {
+          "price": { "mode": "fixed", "currency": "USDC", "amount": "0.005" },
+          "protocols": [{ "x402": {} }]
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/WalletQuery" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Wallet intelligence report" },
+          "402": { "description": "Payment Required" }
+        }
+      }
+    },
+    "/launches": {
+      "post": {
+        "operationId": "detectLaunches",
+        "summary": "Launch Detector",
+        "description": "Early token launch detection with rug risk assessment.",
+        "x-payment-info": {
+          "price": { "mode": "fixed", "currency": "USDC", "amount": "0.003" },
+          "protocols": [{ "x402": {} }]
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/LaunchQuery" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Launch detection results" },
+          "402": { "description": "Payment Required" }
+        }
+      }
+    },
+    "/summary": {
+      "post": {
+        "operationId": "summarizeOnChain",
+        "summary": "LLM Summarizer",
+        "description": "On-chain data summarization powered by Groq.",
+        "x-payment-info": {
+          "price": { "mode": "fixed", "currency": "USDC", "amount": "0.008" },
+          "protocols": [{ "x402": {} }]
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SummaryQuery" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "AI summary of on-chain data" },
+          "402": { "description": "Payment Required" }
+        }
+      }
+    },
+    "/rpc": {
+      "post": {
+        "operationId": "balancedRpc",
+        "summary": "RPC Load Balancer",
+        "description": "Optimized RPC access with redundancy and load balancing.",
+        "x-payment-info": {
+          "price": { "mode": "fixed", "currency": "USDC", "amount": "0.001" },
+          "protocols": [{ "x402": {} }]
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RpcQuery" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "RPC response" },
+          "402": { "description": "Payment Required" }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "TokenQuery": {
+        "type": "object",
+        "properties": {
+          "token": { "type": "string", "description": "Token mint address or symbol" }
+        },
+        "required": ["token"]
+      },
+      "ArbQuery": {
+        "type": "object",
+        "properties": {
+          "min_spread_pct": { "type": "number", "description": "Minimum spread percentage to report (default: 0.1)" }
+        }
+      },
+      "WalletQuery": {
+        "type": "object",
+        "properties": {
+          "address": { "type": "string", "description": "Solana wallet address to score" }
+        },
+        "required": ["address"]
+      },
+      "LaunchQuery": {
+        "type": "object",
+        "properties": {
+          "max_age_minutes": { "type": "integer", "description": "Max token age in minutes (default: 60)" }
+        }
+      },
+      "SummaryQuery": {
+        "type": "object",
+        "properties": {
+          "address": { "type": "string", "description": "Wallet, token, or contract address to summarize" }
+        },
+        "required": ["address"]
+      },
+      "RpcQuery": {
+        "type": "object",
+        "properties": {
+          "method": { "type": "string", "description": "RPC method (e.g. getBalance, getAccountInfo)" },
+          "params": { "type": "array", "description": "RPC method parameters" }
+        },
+        "required": ["method"]
+      }
+    }
+  }
+}
