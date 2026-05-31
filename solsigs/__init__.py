@@ -62,9 +62,10 @@ class SolSigsClient:
         headers = {"Content-Type": "application/json"}
         if payment_tx:
             headers["X-PAYMENT"] = payment_tx
-
         resp = requests.post(url, json=payload, headers=headers, timeout=30)
         return self._handle_response(resp)
+
+    # --- Original 7 Endpoints ---
 
     def get_dex_price(self, token: str) -> Any:
         """Get DEX price feed for a token (Jupiter + Birdeye aggregation).
@@ -73,7 +74,7 @@ class SolSigsClient:
             token: Token mint address or symbol (e.g., 'SOL', 'USDC', or a mint address)
 
         Returns:
-            Price data dict or PaymentRequired if payment is needed.
+            Price data dict or PaymentRequired.
             Price: $0.002 USDC per call.
         """
         return self._post("/dex", {"token": token})
@@ -139,6 +140,134 @@ class SolSigsClient:
         """
         return self._post("/rpc", {"method": method, "params": params or []})
 
+    def prediction_markets(self, query: str = None, category: str = None, limit: int = 5) -> Any:
+        """Query Polymarket prediction markets.
+
+        Args:
+            query: Search query for markets
+            category: Market category filter
+            limit: Max results to return
+
+        Returns:
+            Prediction market data or PaymentRequired.
+            Price: $0.003 USDC per call.
+        """
+        payload = {"limit": limit}
+        if query:
+            payload["query"] = query
+        if category:
+            payload["category"] = category
+        return self._post("/predict", payload)
+
+    # --- New 7 Endpoints (2026-05-30) ---
+
+    def batch_token_pricing(self, tokens: list, period: str = "1h") -> Any:
+        """Batch multi-token pricing with OHLCV candles.
+
+        Args:
+            tokens: List of token mint addresses or symbols
+            period: Candle period (1h, 4h, 1d)
+
+        Returns:
+            Multi-token pricing data or PaymentRequired.
+            Price: $0.003 USDC per call.
+        """
+        return self._post("/price", {"tokens": tokens, "period": period})
+
+    def nft_collection(self, collection_slug: str, sort_by: str = "volume") -> Any:
+        """Get NFT collection floor price, rarity, and wash trading data.
+
+        Args:
+            collection_slug: Collection identifier (e.g., 'mad-lads', 'degen-ape')
+            sort_by: Sort order (volume, floor, sales)
+
+        Returns:
+            NFT collection data or PaymentRequired.
+            Price: $0.004 USDC per call.
+        """
+        return self._post("/nft", {"collection_slug": collection_slug, "sort_by": sort_by})
+
+    def staking_yields(self, protocol: str = None) -> Any:
+        """Compare staking APY across Solana protocols.
+
+        Args:
+            protocol: Specific protocol to query (Marinade, Jito, BlazeStake, Sanctum)
+                     or all if omitted.
+
+        Returns:
+            Staking APY data or PaymentRequired.
+            Price: $0.002 USDC per call.
+        """
+        payload = {}
+        if protocol:
+            payload["protocol"] = protocol
+        return self._post("/staking", payload)
+
+    def whale_tracker(self, min_amount: float = 100000, token: str = None, hours: int = 24) -> Any:
+        """Track whale wallet transactions and smart money flows.
+
+        Args:
+            min_amount: Minimum transaction amount in USD to track
+            token: Optional token filter
+            hours: Lookback window in hours
+
+        Returns:
+            Whale activity data or PaymentRequired.
+            Price: $0.006 USDC per call.
+        """
+        payload = {"min_amount": min_amount, "hours": hours}
+        if token:
+            payload["token"] = token
+        return self._post("/whale", payload)
+
+    def create_alert(self, alert_type: str, condition: str, webhook_url: str) -> Any:
+        """Register a webhook alert for on-chain events.
+
+        Args:
+            alert_type: Alert type (price, whale, launch, arb)
+            condition: Trigger condition (e.g., 'SOL < 150', 'whale > 100k')
+            webhook_url: URL to POST alert data to
+
+        Returns:
+            Alert registration confirmation or PaymentRequired.
+            Price: $0.005 USDC per call.
+        """
+        return self._post("/alerts", {
+            "alert_type": alert_type,
+            "condition": condition,
+            "webhook_url": webhook_url,
+        })
+
+    def protocol_dev_activity(self, protocol: str, days: int = 30) -> Any:
+        """Check protocol development activity and audit status.
+
+        Args:
+            protocol: Protocol name or contract address
+            days: Lookback window for dev activity
+
+        Returns:
+            Dev activity report or PaymentRequired.
+            Price: $0.001 USDC per call.
+        """
+        return self._post("/dev", {"protocol": protocol, "days": days})
+
+    def onchain_social(self, query: str, source: str = None, hours: int = 24) -> Any:
+        """Analyze on-chain social sentiment for tokens, protocols, or wallets.
+
+        Args:
+            query: Search query (token, protocol, or topic)
+            source: Optional source filter
+            hours: Lookback window
+
+        Returns:
+            Social sentiment data or PaymentRequired.
+            Price: $0.004 USDC per call.
+        """
+        payload = {"query": query, "hours": hours}
+        if source:
+            payload["source"] = source
+        return self._post("/social", payload)
+
 
 # --- x402 Payment Helper ---
 # Agents using solsigs-py can integrate their own wallet for automated payment.
@@ -179,5 +308,4 @@ def pay_with_keypair(client: SolSigsClient, keypair, result: PaymentRequired):
 
     # Retry with payment
     sig_b64 = base64.b64encode(bytes(tx_sig)).decode()
-    # Re-call would happen at the agent level
     return tx_sig

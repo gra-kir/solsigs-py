@@ -4,6 +4,26 @@
 
 No API keys. No subscriptions. Agents pay in USDC per call.
 
+## Claude + SolSigs (Native x402)
+
+Claude agents can pay for SolSigs APIs natively — no setup beyond MCP config.
+
+```json
+// ~/Library/Application Support/Claude/claude_desktop_config.json
+{
+  "mcpServers": {
+    "solsigs": {
+      "url": "https://solsigs.com/sse",
+      "transport": "sse"
+    }
+  }
+}
+```
+
+Restart Claude Desktop. Your agent now has **15 Solana research tools** with native x402 micropayments. Full example: [`examples/claude_solsigs_agent.py`](examples/claude_solsigs_agent.py)
+
+🔗 [Anthropic official x402 docs](https://docs.anthropic.com/en/docs/build-with-claude/x402-payments)
+
 ## Install
 
 ```bash
@@ -18,18 +38,18 @@ from solsigs import SolSigsClient
 
 client = SolSigsClient()
 
-# Get DEX price for any Solana token
+# DEX price for any Solana token
 price = client.get_dex_price("DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263")
 print(price)  # → $0.002 USDC
 
-# Score a wallet for risk
+# Multi-token batch pricing + OHLCV
+prices = client.batch_token_pricing(["SOL", "BONK", "WIF"], period="1h")
+
+# Wallet risk scoring
 report = client.score_wallet("7EcDhSYGxXyscszYEp35KHN8vvw3svAuLKTzXwCFLtV")
 
-# Scan for arbitrage
+# Arbitrage scan
 arbs = client.scan_arbitrage(min_spread_pct=0.5)
-
-# Batch token pricing with OHLCV candles
-prices = client.get_batch_prices(["SOL", "BONK", "JUP"], period="1d")
 ```
 
 ### Payment flow
@@ -42,14 +62,14 @@ The client handles the HTTP layer. Integrate your agent's Solana wallet for auto
 
 ## MCP Server
 
-SolSigs also ships as an **MCP server** (Model Context Protocol) — AI agents like Claude, Hermes, and Cursor can call SolSigs tools natively without writing any code.
+SolSigs ships as an **MCP server** (Model Context Protocol) — Claude, Hermes, Cursor, and any MCP-compatible agent can call SolSigs tools natively.
 
 ```json
 {
   "mcpServers": {
     "solsigs": {
-      "url": "https://solsigs.com/mcp/sse",
-      "transport": "http"
+      "url": "https://solsigs.com/sse",
+      "transport": "sse"
     }
   }
 }
@@ -60,9 +80,9 @@ SolSigs also ships as an **MCP server** (Model Context Protocol) — AI agents l
 ### Data & Pricing (5)
 | Tool | Description | Price |
 |------|-------------|-------|
-| `get_dex_price` | Single-token DEX price (Jupiter + Birdeye) | $0.002 |
-| `get_batch_prices` | Multi-token pricing + OHLCV candles + metadata | $0.003 |
-| `get_market_summary` | AI-powered on-chain market summary (Groq) | $0.008 |
+| `get_dex_price` | Single-token DEX price feed (Jupiter + Birdeye) | $0.002 |
+| `batch_token_pricing` | Multi-token pricing + OHLCV candles + metadata | $0.003 |
+| `get_market_summary` | AI-powered on-chain market summary (Groq LLM) | $0.008 |
 | `get_staking_rates` | Cross-protocol APY comparison (Marinade, Jito, Blaze, Sanctum) | $0.002 |
 | `get_dev_activity` | GitHub commit activity + audit status for Solana protocols | $0.001 |
 
@@ -100,9 +120,12 @@ agent = create_react_agent(model, SOLSIGS_LANGGRAPH_TOOLS)
 
 # Your agent can now:
 agent.invoke({"messages": ["What's the current price of BONK?"]})
+agent.invoke({"messages": ["Compare staking APY across Solana protocols"]})
 ```
 
-## Available HTTP Endpoints
+See [`examples/langgraph_agent.py`](examples/langgraph_agent.py) for a full multi-step agent demo.
+
+## Available HTTP Endpoints (14)
 
 ### Data & Pricing (5)
 | Endpoint | Description | Price |
@@ -140,10 +163,13 @@ agent.invoke({"messages": ["What's the current price of BONK?"]})
 - **No subscriptions** — pay only for what you use
 - **Agent-native** — designed for autonomous agent commerce
 - **Solana speed** — transactions finalize in <1s, fees <$0.001
+- **Claude native** — Anthropic official x402 support, zero setup for Claude users
 
 ## Links
 
 - [SolSigs Homepage](https://solsigs.com)
+- [Claude + SolSigs Example](examples/claude_solsigs_agent.py)
+- [Anthropic x402 Docs](https://docs.anthropic.com/en/docs/build-with-claude/x402-payments)
 - [x402 Protocol](https://x402.org)
 - [x402scan Explorer](https://x402scan.com)
 
