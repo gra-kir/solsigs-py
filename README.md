@@ -20,7 +20,7 @@ Claude agents can pay for SolSigs APIs natively — no setup beyond MCP config.
 }
 ```
 
-Restart Claude Desktop. Your agent now has **15 Solana research tools** with native x402 micropayments. Full example: [`examples/claude_solsigs_agent.py`](examples/claude_solsigs_agent.py)
+Restart Claude Desktop. Your agent now has **16 Solana research tools** with native x402 micropayments. Full example: [`examples/claude_solsigs_agent.py`](examples/claude_solsigs_agent.py)
 
 🔗 [Anthropic official x402 docs](https://docs.anthropic.com/en/docs/build-with-claude/x402-payments)
 
@@ -75,7 +75,7 @@ SolSigs ships as an **MCP server** (Model Context Protocol) — Claude, Hermes, 
 }
 ```
 
-**15 MCP tools** — all 14 HTTP endpoints + Polymarket prediction markets:
+**16 MCP tools** — all 15 HTTP endpoints + Polymarket prediction markets:
 
 ### Data & Pricing (5)
 | Tool | Description | Price |
@@ -92,12 +92,13 @@ SolSigs ships as an **MCP server** (Model Context Protocol) — Claude, Hermes, 
 | `scan_arbitrage` | Cross-DEX arbitrage scanner | $0.010 |
 | `get_prediction_market` | Polymarket prediction markets (crypto, politics, sports) | $0.003 |
 
-### Intelligence & Tracking (5)
+### Intelligence & Tracking (6)
 | Tool | Description | Price |
 |------|-------------|-------|
 | `analyze_wallet` | Wallet risk scoring + wash trading detection | $0.005 |
 | `detect_token_launches` | New token launch detection (pump.fun, Raydium) | $0.003 |
 | `get_whale_activity` | Whale wallet tracking + smart money signals | $0.006 |
+| `track_smart_money` | Smart money wallet tracking + copy-trade signals | $0.008 |
 | `get_nft_intel` | NFT floor prices, rarity, wash trading per collection | $0.004 |
 | `get_social_sentiment` | On-chain social sentiment + influencer tracking | $0.004 |
 
@@ -125,7 +126,7 @@ agent.invoke({"messages": ["Compare staking APY across Solana protocols"]})
 
 See [`examples/langgraph_agent.py`](examples/langgraph_agent.py) for a full multi-step agent demo.
 
-## Available HTTP Endpoints (14)
+## Available HTTP Endpoints (15)
 
 ### Data & Pricing (5)
 | Endpoint | Description | Price |
@@ -139,15 +140,16 @@ See [`examples/langgraph_agent.py`](examples/langgraph_agent.py) for a full mult
 ### Trading & Arbitrage (2)
 | Endpoint | Description | Price |
 |----------|-------------|-------|
-| `/arb` | Arbitrage scanner | $0.010 |
+| `/arb` | Arbitrage scanner v2 — MEV scoring + sandwich detection | $0.010 |
 | `/predict` | Polymarket prediction markets | $0.003 |
 
-### Intelligence & Tracking (5)
+### Intelligence & Tracking (6)
 | Endpoint | Description | Price |
 |----------|-------------|-------|
 | `/wallet` | Wallet risk scoring | $0.005 |
 | `/launches` | Early token launch detection | $0.003 |
 | `/whale` | Whale wallet tracking + smart money signals | $0.006 |
+| `/smartmoney` | Smart money wallet tracking + copy-trade signals | $0.008 |
 | `/nft` | NFT floor prices, rarity, wash trading | $0.004 |
 | `/social` | On-chain social sentiment + influencer tracking | $0.004 |
 
