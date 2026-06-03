@@ -67,11 +67,14 @@ USDC_MINT_STR = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
 class DryRunPayer:
     """Shows what WOULD happen — no money spent."""
 
-    def pay(self, endpoint: str, payload: dict) -> tuple[str | None, dict | None]:
+    def pay(self, endpoint: str, payload: dict, method: str = "GET") -> tuple[str | None, dict | None]:
         url = f"{SOLSIGS_BASE}{endpoint}"
         try:
             with httpx.Client(timeout=10) as c:
-                resp = c.post(url, json=payload)
+                if method == "POST":
+                    resp = c.post(url, json=payload)
+                else:
+                    resp = c.get(url, params=payload)
         except Exception as e:
             return (None, {"error": str(e), "status": "connection_failed"})
 
@@ -127,10 +130,13 @@ class LivePayer:
             self._ata = get_associated_token_address(self.kp.pubkey(), self.usdc_mint)
         return self._ata
 
-    def pay(self, endpoint: str, payload: dict) -> tuple[str | None, dict | None]:
+    def pay(self, endpoint: str, payload: dict, method: str = "GET") -> tuple[str | None, dict | None]:
         url = f"{SOLSIGS_BASE}{endpoint}"
         with httpx.Client(timeout=30) as c:
-            resp = c.post(url, json=payload)
+            if method == "POST":
+                resp = c.post(url, json=payload)
+            else:
+                resp = c.get(url, params=payload)
 
         if resp.status_code == 200:
             return None, resp.json()
@@ -145,7 +151,10 @@ class LivePayer:
             return None, {"error": f"Payment failed: {e}"}
 
         with httpx.Client(timeout=30) as c:
-            resp = c.post(url, json=payload, headers={"PAYMENT-SIGNATURE": tx_sig})
+            if method == "POST":
+                resp = c.post(url, json=payload, headers={"PAYMENT-SIGNATURE": tx_sig})
+            else:
+                resp = c.get(url, params=payload, headers={"PAYMENT-SIGNATURE": tx_sig})
         if resp.status_code != 200:
             return None, {"error": f"Retry failed ({resp.status_code})"}
 
@@ -198,7 +207,7 @@ SOLSIGS_TOOLS = [
         "type": "function",
         "function": {
             "name": "solana_dex_price",
-            "description": "Real-time DEX price for any Solana token (Jupiter+Birdeye). Costs $0.002 USDC via x402 micropayment.",
+            "description": "Real-time DEX price for any Solana token (Jupiter+Birdeye). Costs $0.002 USDC.",
             "parameters": {
                 "type": "object",
                 "properties": {"token": {"type": "string", "description": "Token symbol (SOL, BONK, JUP) or mint address"}},
@@ -209,11 +218,29 @@ SOLSIGS_TOOLS = [
     {
         "type": "function",
         "function": {
+            "name": "solana_batch_pricing",
+            "description": "Batch multi-token pricing with OHLCV candlestick history. Costs $0.003 USDC.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "tokens": {"type": "array", "items": {"type": "string"}, "description": "Token symbols or mint addresses"},
+                    "timeframe": {"type": "string", "description": "Candlestick timeframe: 1h, 4h, 1d (default 1h)"},
+                },
+                "required": ["tokens"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "solana_arb_scan",
             "description": "Scan for arbitrage opportunities across Solana DEXs. Costs $0.010 USDC.",
             "parameters": {
                 "type": "object",
-                "properties": {"min_spread_pct": {"type": "number", "description": "Minimum spread % (default 0.1)"}},
+                "properties": {
+                    "token": {"type": "string", "description": "Token to scan (default: SOL)"},
+                    "min_profit_bps": {"type": "integer", "description": "Minimum profit in basis points (default 10 = 0.1%)"},
+                },
             },
         },
     },
@@ -224,7 +251,7 @@ SOLSIGS_TOOLS = [
             "description": "New token launches on pump.fun/Raydium with rug risk assessment. Costs $0.003 USDC.",
             "parameters": {
                 "type": "object",
-                "properties": {"max_age_minutes": {"type": "integer", "description": "Max token age in minutes (default 60)"}},
+                "properties": {"hours": {"type": "integer", "description": "Look back N hours (default 1)"}},
             },
         },
     },
@@ -243,12 +270,128 @@ SOLSIGS_TOOLS = [
     {
         "type": "function",
         "function": {
-            "name": "solana_market_summary",
-            "description": "AI-powered summary of Solana market activity. Costs $0.008 USDC.",
+            "name": "solana_nft_intel",
+            "description": "NFT collection floor prices, rarity, and wash trading detection. Costs $0.004 USDC.",
             "parameters": {
                 "type": "object",
-                "properties": {"query": {"type": "string", "description": "What to summarize (e.g. 'memecoin activity')"}},
+                "properties": {
+                    "collection": {"type": "string", "description": "NFT collection name or mint address"},
+                    "sort_by": {"type": "string", "description": "Sort by: floor, volume, rarity (default floor)"},
+                },
+                "required": ["collection"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "solana_staking_yields",
+            "description": "Compare staking APY across Solana protocols (Marinade, Jito, Blaze, etc.). Costs $0.002 USDC.",
+            "parameters": {
+                "type": "object",
+                "properties": {"protocol": {"type": "string", "description": "Specific protocol or 'all' (default)"}},
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "solana_whale_tracker",
+            "description": "Track whale transactions and smart money signals. Costs $0.006 USDC.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "min_amount": {"type": "number", "description": "Minimum USD amount (default 100000)"},
+                    "token": {"type": "string", "description": "Filter by token symbol (default: all)"},
+                    "hours": {"type": "integer", "description": "Look back N hours (default 24)"},
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "solana_social_sentiment",
+            "description": "On-chain social sentiment analysis for any token or topic. Costs $0.004 USDC.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Token, topic, or keyword to analyze"},
+                    "source": {"type": "string", "description": "Source: twitter, discord, telegram, all (default all)"},
+                    "hours": {"type": "integer", "description": "Look back N hours (default 24)"},
+                },
                 "required": ["query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "solana_dev_activity",
+            "description": "GitHub dev activity, commits, and audit status for Solana protocols. Costs $0.001 USDC.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "protocol": {"type": "string", "description": "Protocol name (e.g. Jupiter, Raydium, Marinade)"},
+                    "days": {"type": "integer", "description": "Days of activity to return (default 30)"},
+                },
+                "required": ["protocol"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "solana_smart_money",
+            "description": "Track top trader wallets — their recent moves, copy-trade signals, and wallet discovery. Costs $0.008 USDC.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "min_score": {"type": "number", "description": "Minimum trader quality score 0-100 (default 70)"},
+                    "limit": {"type": "integer", "description": "Max wallets to return (default 10)"},
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "solana_rpc_relay",
+            "description": "Pay-per-call Solana RPC relay via Helius. Costs $0.001 USDC per call.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "method": {"type": "string", "description": "RPC method (e.g. getAccountInfo, getBalance, getTokenAccountsByOwner)"},
+                    "params": {"type": "array", "items": {"type": "string"}, "description": "Method parameters"},
+                },
+                "required": ["method"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "solana_webhook_alerts",
+            "description": "Register a webhook alert for on-chain events (price, whale moves, launches). Costs $0.005 USDC.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "type": {"type": "string", "description": "Alert type: price, whale, launch, arb"},
+                    "condition": {"type": "string", "description": "Condition (e.g. 'SOL > 200', 'whale > 500k')"},
+                    "webhook_url": {"type": "string", "description": "Your webhook URL to receive alerts"},
+                },
+                "required": ["type", "condition", "webhook_url"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "solana_market_summary",
+            "description": "AI-powered summary of Solana market activity via Groq LLM. Costs $0.008 USDC.",
+            "parameters": {
+                "type": "object",
+                "properties": {"query": {"type": "string", "description": "What to summarize (e.g. 'memecoin activity', 'DeFi TVL trends')"}},
             },
         },
     },
@@ -262,6 +405,7 @@ SOLSIGS_TOOLS = [
                 "properties": {
                     "query": {"type": "string", "description": "Search term"},
                     "category": {"type": "string", "description": "Category: crypto, politics, sports, economics"},
+                    "limit": {"type": "integer", "description": "Max results (default 10)"},
                 },
             },
         },
@@ -269,12 +413,21 @@ SOLSIGS_TOOLS = [
 ]
 
 TOOL_MAP = {
-    "solana_dex_price": ("/dex", lambda a: {"token": a["token"]}),
-    "solana_arb_scan": ("/arb", lambda a: {"min_spread_pct": a.get("min_spread_pct", 0.1)}),
-    "solana_token_launches": ("/launches", lambda a: {"max_age_minutes": a.get("max_age_minutes", 60)}),
-    "solana_wallet_score": ("/wallet", lambda a: {"address": a["address"]}),
-    "solana_market_summary": ("/summary", lambda a: {"query": a.get("query", "market activity")}),
-    "solana_predict": ("/predict", lambda a: {"query": a.get("query", ""), "category": a.get("category", "")}),
+    "solana_dex_price":       ("/dex",       lambda a: {"token": a["token"]}),
+    "solana_batch_pricing":   ("/price",     lambda a: {"tokens": a["tokens"], "timeframe": a.get("timeframe", "1h")}, "POST"),
+    "solana_arb_scan":        ("/arb",       lambda a: {k: v for k, v in {"token": a.get("token"), "minProfitBps": a.get("min_profit_bps")}.items() if v is not None}),
+    "solana_token_launches":  ("/launches",  lambda a: {"hours": a.get("hours", 1)}),
+    "solana_wallet_score":    ("/wallet",    lambda a: {"address": a["address"]}),
+    "solana_nft_intel":       ("/nft",       lambda a: {"collection": a["collection"], "sortBy": a.get("sort_by", "floor")}),
+    "solana_staking_yields":  ("/staking",   lambda a: {k: v for k, v in {"protocol": a.get("protocol")}.items() if v is not None}),
+    "solana_whale_tracker":   ("/whale",     lambda a: {k: v for k, v in {"minAmount": a.get("min_amount"), "token": a.get("token"), "hours": a.get("hours")}.items() if v is not None}),
+    "solana_social_sentiment":("/social",    lambda a: {"query": a["query"], "source": a.get("source", "all"), "hours": a.get("hours", 24)}),
+    "solana_dev_activity":    ("/dev",       lambda a: {"protocol": a["protocol"], "days": a.get("days", 30)}),
+    "solana_smart_money":     ("/smartmoney",lambda a: {"minScore": a.get("min_score", 70), "limit": a.get("limit", 10)}, "POST"),
+    "solana_rpc_relay":       ("/rpc",       lambda a: {"jsonrpc": "2.0", "id": 1, "method": a["method"], "params": a.get("params", [])}, "POST"),
+    "solana_webhook_alerts":  ("/alerts",    lambda a: {"type": a["type"], "condition": a["condition"], "webhookUrl": a["webhook_url"]}, "POST"),
+    "solana_market_summary":  ("/summary",   lambda a: {"query": a.get("query", "market activity")}),
+    "solana_predict":         ("/predict",   lambda a: {k: v for k, v in {"query": a.get("query"), "category": a.get("category"), "limit": a.get("limit")}.items() if v is not None}),
 }
 
 
@@ -349,13 +502,16 @@ class ClaudeSolSigsAgent:
 
             for tc in msg.tool_calls:
                 args = json.loads(tc.function.arguments)
-                endpoint, build_payload = TOOL_MAP[tc.function.name]
+                entry = TOOL_MAP[tc.function.name]
+                endpoint = entry[0]
+                build_payload = entry[1]
+                method = entry[2] if len(entry) > 2 else "GET"
                 payload = build_payload(args)
 
                 print(f"\n  🔧 {tc.function.name}({json.dumps(args)})")
-                print(f"     → {SOLSIGS_BASE}{endpoint}")
+                print(f"     → {method} {SOLSIGS_BASE}{endpoint}")
 
-                tx_sig, result = self.payer.pay(endpoint, payload)
+                tx_sig, result = self.payer.pay(endpoint, payload, method)
                 if tx_sig and tx_sig != "dry-run":
                     payments.append({"tool": tc.function.name, "tx": tx_sig})
 
@@ -389,12 +545,15 @@ class ClaudeSolSigsAgent:
             messages.append({"role": "assistant", "content": response.content})
 
             for block in tool_blocks:
-                endpoint, build_payload = TOOL_MAP[block.name]
+                entry = TOOL_MAP[block.name]
+                endpoint = entry[0]
+                build_payload = entry[1]
+                method = entry[2] if len(entry) > 2 else "GET"
                 payload = build_payload(block.input)
                 print(f"\n  🔧 {block.name}({json.dumps(block.input)})")
-                print(f"     → {SOLSIGS_BASE}{endpoint}")
+                print(f"     → {method} {SOLSIGS_BASE}{endpoint}")
 
-                tx_sig, result = self.payer.pay(endpoint, payload)
+                tx_sig, result = self.payer.pay(endpoint, payload, method)
                 if tx_sig and tx_sig != "dry-run":
                     payments.append({"tool": block.name, "tx": tx_sig})
 
