@@ -52,10 +52,19 @@ python examples/claude_agent.py -p YOUR_BASE58_PRIVATE_KEY
 | Tool | Cost | Description |
 |------|------|-------------|
 | `solana_dex_price` | $0.002 | Real-time DEX price (Jupiter+Birdeye) |
+| `solana_batch_pricing` | $0.003 | Batch multi-token pricing + candlestick OHLCV |
 | `solana_arb_scan` | $0.010 | Arbitrage scan across Solana DEXs |
 | `solana_token_launches` | $0.003 | New tokens with rug risk assessment |
 | `solana_wallet_score` | $0.005 | Wallet risk/activity analysis |
-| `solana_market_summary` | $0.008 | AI market activity summary |
+| `solana_nft_intel` | $0.004 | NFT floors, rarity, wash trading detection |
+| `solana_staking_yields` | $0.002 | Staking APY across protocols |
+| `solana_whale_tracker` | $0.006 | Whale transaction tracking |
+| `solana_social_sentiment` | $0.004 | On-chain social sentiment analysis |
+| `solana_dev_activity` | $0.001 | GitHub dev activity for protocols |
+| `solana_smart_money` | $0.008 | Top trader wallets + copy-trade signals |
+| `solana_rpc_relay` | $0.001 | Pay-per-call Solana RPC relay |
+| `solana_webhook_alerts` | $0.005 | On-chain event webhook alerts |
+| `solana_market_summary` | $0.008 | AI market activity summary (Groq LLM) |
 | `solana_predict` | $0.003 | Polymarket prediction data |
 
 ## Architecture
