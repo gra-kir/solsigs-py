@@ -36,7 +36,20 @@ langgraph = [
     "langgraph>=0.2.0",
     "langchain-core>=0.3.0",
 ]
+langchain = [
+    "langchain-core>=0.3.0",
+]
+crewai = [
+    "crewai>=0.80.0",
+]
 solana = [
+    "solana>=0.30",
+    "solders>=0.20",
+]
+all = [
+    "langgraph>=0.2.0",
+    "langchain-core>=0.3.0",
+    "crewai>=0.80.0",
     "solana>=0.30",
     "solders>=0.20",
 ]
