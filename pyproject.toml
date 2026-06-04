@@ -25,7 +25,11 @@ classifiers = [
 
 dependencies = [
     "requests>=2.28",
+    "httpx>=0.24",
 ]
+
+[project.scripts]
+solsigs-mcp = "solsigs.mcp_proxy:main"
 
 [project.optional-dependencies]
 langgraph = [
