@@ -8,19 +8,22 @@ Claude agents pay USDC natively per call — no API keys, no subscriptions.
 Anthropic official x402 docs: docs.anthropic.com/en/docs/build-with-claude/x402-payments
 
 Setup — 30 seconds:
-  1. Add this to your Claude Desktop config (~/Library/Application Support/Claude/claude_desktop_config.json):
+  1. Install:  pip install solsigs-py
+  2. Add this to your Claude Desktop config (~/Library/Application Support/Claude/claude_desktop_config.json):
 
      {
        "mcpServers": {
          "solsigs": {
-           "url": "https://solsigs.com/sse",
-           "transport": "sse"
+           "command": "solsigs-mcp"
          }
        }
      }
 
-  2. Restart Claude Desktop
-  3. Claude now has 15 Solana research tools with native x402 payment
+  3. Restart Claude Desktop
+  4. Claude now has 15 Solana research tools with native x402 payment
+
+CLAUDE DESKTOP ONLY SUPPORTS STDIO TRANSPORT. The `solsigs-mcp` command is a
+local stdio proxy that bridges to the remote SolSigs MCP server via SSE.
 
 Example research sessions Claude can now run autonomously:
 
@@ -93,7 +96,8 @@ def check_claude_mcp_config():
         servers = config.get("mcpServers", {})
         if "solsigs" in servers:
             print("✅ Claude Desktop configured for SolSigs MCP")
-            print(f"   URL: {servers['solsigs'].get('url', 'unknown')}")
+            cmd = servers["solsigs"].get("command", "solsigs-mcp")
+            print(f"   Command: {cmd}")
             return True
 
     print("⚠️  Claude Desktop MCP config not found for SolSigs")
@@ -120,8 +124,7 @@ def print_setup_instructions():
 
     mcp_entry = {
         "solsigs": {
-            "url": "https://solsigs.com/sse",
-            "transport": "sse"
+            "command": "solsigs-mcp"
         }
     }
 
@@ -129,11 +132,14 @@ def print_setup_instructions():
 📋 Claude + SolSigs Setup (30 seconds)
 ======================================
 
-1. Create/open Claude Desktop config:
+1. Install:
+   pip install solsigs-py
+
+2. Create/open Claude Desktop config:
    mkdir -p {config_dir}
    nano "{config_path}"
 
-2. Paste this configuration:
+3. Paste this configuration:
 """.format(config_dir=config_dir, config_path=config_path))
 
     # Try to read existing config
@@ -150,9 +156,9 @@ def print_setup_instructions():
 
     print(json.dumps(existing, indent=2))
     print("""
-3. Save and restart Claude Desktop
+4. Save and restart Claude Desktop
 
-4. Verify: Claude's tool list now shows 15 SolSigs tools
+5. Verify: Claude's tool list now shows 15 SolSigs tools
 
 💰 Your Claude agent can now:
    - Research any Solana token, wallet, or protocol

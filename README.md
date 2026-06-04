@@ -4,23 +4,29 @@
 
 No API keys. No subscriptions. Agents pay in USDC per call.
 
-## Claude + SolSigs (Native x402)
+## Claude Desktop (Native x402)
 
-Claude agents can pay for SolSigs APIs natively — no setup beyond MCP config.
+Claude agents can pay for SolSigs APIs natively — 30 second setup.
+
+```bash
+pip install solsigs-py
+```
+
+Then add this to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 
 ```json
-// ~/Library/Application Support/Claude/claude_desktop_config.json
 {
   "mcpServers": {
     "solsigs": {
-      "url": "https://solsigs.com/sse",
-      "transport": "sse"
+      "command": "solsigs-mcp"
     }
   }
 }
 ```
 
-Restart Claude Desktop. Your agent now has **15 Solana research tools** with native x402 micropayments. Full example: [`examples/claude_solsigs_agent.py`](examples/claude_solsigs_agent.py)
+Restart Claude Desktop. Your agent now has **15 Solana research tools** with native x402 micropayments.
+
+**Why a local command?** Claude Desktop only supports stdio transport. `solsigs-mcp` is a local proxy that bridges stdio ↔ the remote SolSigs MCP server over SSE. Full example: [`examples/claude_solsigs_agent.py`](examples/claude_solsigs_agent.py)
 
 🔗 [Anthropic official x402 docs](https://docs.anthropic.com/en/docs/build-with-claude/x402-payments)
 
@@ -63,6 +69,10 @@ The client handles the HTTP layer. Integrate your agent's Solana wallet for auto
 ## MCP Server
 
 SolSigs ships as an **MCP server** (Model Context Protocol) — Claude, Hermes, Cursor, and any MCP-compatible agent can call SolSigs tools natively.
+
+**Claude Desktop users:** use the `solsigs-mcp` command above (stdio bridge).
+
+**Hermes, Cursor, and other SSE-capable MCP clients:**
 
 ```json
 {
