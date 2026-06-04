@@ -39,9 +39,10 @@ class SolSigsClient:
     3. Retry with payment proof → get data
     """
 
-    def __init__(self, base_url: str = SOLSIGS_BASE, payer_keypair=None):
+    def __init__(self, base_url: str = SOLSIGS_BASE, payer_keypair=None, free_tier_key: Optional[str] = None):
         self.base_url = base_url.rstrip("/")
         self.payer = payer_keypair
+        self.free_tier_key = free_tier_key
 
     def _handle_response(self, response: requests.Response) -> Any:
         if response.status_code == 200:
@@ -60,6 +61,8 @@ class SolSigsClient:
     def _post(self, path: str, payload: dict, payment_tx: Optional[str] = None) -> Any:
         url = f"{self.base_url}{path}"
         headers = {"Content-Type": "application/json"}
+        if self.free_tier_key:
+            headers["X-Free-Tier-Key"] = self.free_tier_key
         if payment_tx:
             headers["X-PAYMENT"] = payment_tx
         resp = requests.post(url, json=payload, headers=headers, timeout=30)
