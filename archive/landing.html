@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Open Graph / Social -->
+  <meta property="og:title" content="SolSigs — Solana Data APIs for AI Agents">
+  <meta property="og:description" content="15 Solana data endpoints paid via x402 micropayments in USDC. No API keys, no subscriptions — agents pay per call.">
+  <meta property="og:image" content="https://solsigs.com/og-image.png">
+  <meta property="og:url" content="https://solsigs.com">
+  <meta property="og:type" content="website">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="SolSigs — Solana Data APIs for AI Agents">
+  <meta name="twitter:description" content="15 Solana data endpoints paid via x402 micropayments in USDC. No API keys, no subscriptions.">
+  <meta name="twitter:image" content="https://solsigs.com/og-image.png">
+  <meta name="twitter:site" content="@Solsigs_">
+
+  <title>SolSigs — Solana Data APIs for AI Agents</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=IBM+Plex+Mono:wght@400;500;600&family=Overpass:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --primary: #00d4aa;
+      --dark: #0a0e27;
+      --darker: #050810;
+      --accent: #ff6b9d;
+      --text-light: #e5e7eb;
+      --text-muted: #9ca3af;
+      --border: rgba(0, 212, 170, 0.12);
+      --card-bg: rgba(15, 21, 53, 0.5);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Overpass', sans-serif;
+      background: linear-gradient(135deg, var(--darker) 0%, #0f1535 100%);
+      color: var(--text-light);
+      overflow-x: hidden;
+      position: relative;
+    }
+
+    body::before {
+      content: '';
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background-image:
+        linear-gradient(rgba(0,212,170,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,212,170,0.025) 1px, transparent 1px);
+      background-size: 80px 80px;
+      pointer-events: none; z-index: 0;
+    }
+
+    body::after {
+      content: '';
+      position: fixed; top: -50%; right: -20%;
+      width: 800px; height: 800px;
+      background: radial-gradient(circle, rgba(0,212,170,0.08) 0%, transparent 70%);
+      border-radius: 50%; pointer-events: none;
+      animation: float 20s ease-in-out infinite; z-index: 0;
+    }
+
+    @keyframes float {
+      0%,100% { transform: translate(0,0); }
+      25% { transform: translate(50px,-50px); }
+      50% { transform: translate(0,-100px); }
+      75% { transform: translate(-50px,-50px); }
+    }
+
+    main { position: relative; z-index: 1; }
+
+    /* ── NAV ── */
+    nav {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 1.25rem 2.5rem;
+      background: rgba(5,8,16,0.75); backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      position: sticky; top: 0; z-index: 100;
+    }
+    .logo {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 1.1rem; font-weight: 600;
+      color: var(--primary); letter-spacing: .06em;
+      display: flex; align-items: center; gap: .5rem;
+    }
+    .logo-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--primary); animation: blink 2s infinite; flex-shrink: 0; }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.2} }
+    nav ul { display: flex; list-style: none; gap: 2rem; }
+    nav a { color: var(--text-muted); text-decoration: none; font-size: .875rem; font-weight: 500; transition: color .2s; }
+    nav a:hover { color: var(--primary); }
+    .nav-cta {
+      font-family: 'IBM Plex Mono', monospace; font-size: .75rem;
+      padding: .45rem 1.1rem; border: 1px solid var(--primary); color: var(--primary);
+      background: rgba(0,212,170,.06); border-radius: 4px; text-decoration: none;
+      transition: all .2s; letter-spacing: .03em;
+    }
+    .nav-cta:hover { background: var(--primary); color: var(--darker); }
+
+    /* ── HERO ── */
+    .hero {
+      min-height: 88vh; display: flex; flex-direction: column;
+      justify-content: center; align-items: center;
+      padding: 5rem 2rem 4rem; text-align: center;
+      animation: fadeIn .8s ease-out;
+    }
+    @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+
+    .hero-kicker {
+      font-family: 'IBM Plex Mono', monospace; font-size: .7rem;
+      color: var(--primary); letter-spacing: .18em; text-transform: uppercase;
+      margin-bottom: 1.5rem; opacity: .85;
+      animation: slideUp .6s ease-out both;
+    }
+    @keyframes slideUp { from{opacity:0;transform:translateY(24px)} to{opacity:1;transform:translateY(0)} }
+
+    .hero h1 {
+      font-family: 'Space Mono', monospace;
+      font-size: clamp(2.2rem, 6.5vw, 4.5rem);
+      font-weight: 700; line-height: 1.1; letter-spacing: -2px;
+      margin-bottom: 1.25rem;
+      animation: slideUp .8s ease-out .1s both;
+    }
+    .hero h1 .highlight {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .hero p {
+      font-size: 1.1rem; color: var(--text-muted); max-width: 540px;
+      line-height: 1.75; margin-bottom: 2.5rem; font-weight: 300;
+      animation: slideUp .8s ease-out .2s both;
+    }
+    .cta-group {
+      display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;
+      animation: slideUp .8s ease-out .3s both;
+    }
+    .btn {
+      padding: .75rem 1.75rem; border: 1.5px solid var(--primary);
+      background: transparent; color: var(--primary);
+      text-decoration: none; font-weight: 600; cursor: pointer;
+      transition: all .25s; font-size: .875rem; text-transform: uppercase;
+      letter-spacing: .06em; border-radius: 4px;
+      font-family: 'IBM Plex Mono', monospace; display: inline-block;
+    }
+    .btn:hover { background: var(--primary); color: var(--darker); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,212,170,.25); }
+    .btn-primary { background: var(--primary); color: var(--darker); }
+    .btn-primary:hover { background: transparent; color: var(--primary); }
+
+    .proof-bar {
+      margin-top: 3.5rem;
+      display: flex; gap: 3rem; justify-content: center; flex-wrap: wrap;
+      padding: 1.25rem 2.5rem;
+      border: 1px solid var(--border); border-radius: 8px;
+      background: rgba(0,212,170,.025); backdrop-filter: blur(8px);
+      animation: slideUp .8s ease-out .4s both;
+    }
+    .proof-item { text-align: center; }
+    .proof-val { font-family: 'Space Mono', monospace; font-size: 1.5rem; font-weight: 700; color: var(--primary); }
+    .proof-label { font-size: .7rem; color: var(--text-muted); margin-top: .2rem; letter-spacing: .06em; text-transform: uppercase; }
+
+    /* ── SECTION CHROME ── */
+    .section-wrap { max-width: 1200px; margin: 0 auto; padding: 5rem 2rem; }
+    .section-eyebrow {
+      font-family: 'IBM Plex Mono', monospace; font-size: .68rem;
+      color: var(--primary); letter-spacing: .18em; text-transform: uppercase;
+      margin-bottom: .6rem; opacity: .85;
+    }
+    .section-title {
+      font-family: 'Space Mono', monospace;
+      font-size: clamp(1.5rem, 3.5vw, 2.2rem);
+      font-weight: 700; letter-spacing: -1px; margin-bottom: .6rem;
+    }
+    .section-sub {
+      font-size: .9rem; color: var(--text-muted); max-width: 500px;
+      line-height: 1.7; margin-bottom: 2.5rem; font-weight: 300;
+    }
+
+    /* ── ENDPOINT CARDS ── */
+    .services-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.25rem;
+    }
+    .service-card {
+      padding: 1.5rem; background: var(--card-bg);
+      border: 1px solid var(--border); border-radius: 8px;
+      transition: all .35s cubic-bezier(.23,1,.32,1);
+      position: relative; overflow: hidden;
+    }
+    .service-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--primary), transparent);
+      opacity: 0; transition: opacity .3s;
+    }
+    .service-card:hover { border-color: rgba(0,212,170,.35); transform: translateY(-3px); box-shadow: 0 12px 32px rgba(0,212,170,.07); }
+    .service-card:hover::before { opacity: 1; }
+    .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: .5rem; }
+    .card-route { font-family: 'IBM Plex Mono', monospace; font-size: .85rem; font-weight: 600; color: var(--primary); }
+    .card-price { font-family: 'IBM Plex Mono', monospace; font-size: .8rem; font-weight: 700; background: rgba(0,212,170,.1); border: 1px solid rgba(0,212,170,.2); color: var(--text-light); padding: .2rem .55rem; border-radius: 4px; }
+    .card-method { font-family: 'IBM Plex Mono', monospace; font-size: .6rem; color: var(--text-muted); background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.06); padding: .12rem .4rem; border-radius: 3px; margin-bottom: .6rem; display: inline-block; }
+    .service-card h3 { font-size: .95rem; font-weight: 600; margin-bottom: .4rem; }
+    .service-card p { font-size: .82rem; color: var(--text-muted); line-height: 1.6; margin-bottom: .75rem; font-weight: 300; }
+    .card-params { font-family: 'IBM Plex Mono', monospace; font-size: .68rem; color: rgba(0,212,170,.55); }
+
+    /* ── COMPARISON — FIXED ALIGNMENT ── */
+    /* Key: single table layout ensures rows always align across columns */
+    .compare-outer { max-width: 1200px; margin: 0 auto; padding: 0 2rem 5rem; }
+    .compare-table-wrap {
+      border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+    }
+    .compare-table {
+      width: 100%; border-collapse: collapse; table-layout: fixed;
+    }
+    .compare-table thead tr {
+      background: rgba(0,212,170,.03); border-bottom: 1px solid var(--border);
+    }
+    .compare-table th {
+      padding: 1.5rem 2rem; text-align: left; font-weight: 500;
+      vertical-align: bottom;
+    }
+    .compare-table th:first-child {
+      width: 34%; font-size: .8rem; color: var(--text-muted); font-family: 'IBM Plex Mono', monospace;
+      letter-spacing: .08em; text-transform: uppercase; font-weight: 400;
+    }
+    .th-label { font-family: 'IBM Plex Mono', monospace; font-size: .65rem; color: var(--text-muted); letter-spacing: .12em; text-transform: uppercase; margin-bottom: .35rem; }
+    .th-title { font-family: 'Overpass', sans-serif; font-size: 1rem; font-weight: 600; color: var(--text-light); margin-bottom: .2rem; }
+    .th-sub { font-size: .78rem; color: var(--text-muted); font-weight: 300; }
+    .th-badge { display: inline-block; margin-top: .5rem; font-family: 'IBM Plex Mono', monospace; font-size: .62rem; color: var(--primary); background: rgba(0,212,170,.1); border: 1px solid rgba(0,212,170,.25); padding: .18rem .55rem; border-radius: 3px; }
+
+    .compare-table td {
+      padding: .9rem 2rem; border-top: 1px solid rgba(0,212,170,.06);
+      font-size: .85rem; vertical-align: middle;
+    }
+    .compare-table td:first-child { color: var(--text-muted); font-size: .82rem; }
+    .compare-table td.old { color: var(--text-muted); font-family: 'IBM Plex Mono', monospace; font-size: .8rem; }
+    .compare-table td.bad { color: #ff6b6b; font-family: 'IBM Plex Mono', monospace; font-size: .8rem; }
+    .compare-table td.good { color: var(--primary); font-family: 'IBM Plex Mono', monospace; font-size: .8rem; }
+    .compare-table tbody tr:hover td { background: rgba(255,255,255,.015); }
+    .col-highlight { background: rgba(0,212,170,.025); }
+
+    /* ── WHY SOLANA ── */
+    .why-outer { max-width: 1200px; margin: 0 auto; padding: 0 2rem 5rem; }
+    .why-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: center; }
+    .why-text h2 { font-family: 'Space Mono', monospace; font-size: clamp(1.5rem,3.5vw,2.1rem); font-weight: 700; letter-spacing: -1px; margin-bottom: .75rem; }
+    .why-text p { font-size: .9rem; color: var(--text-muted); line-height: 1.7; margin-bottom: 1.5rem; font-weight: 300; }
+    .why-list { list-style: none; display: flex; flex-direction: column; gap: .65rem; }
+    .why-list li { display: flex; gap: .75rem; font-size: .85rem; color: var(--text-muted); line-height: 1.5; }
+    .why-list li::before { content: '→'; color: var(--primary); flex-shrink: 0; font-family: monospace; padding-top: .02rem; }
+    .why-list strong { color: var(--text-light); }
+    .why-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 10px; overflow: hidden; }
+    .why-stat { background: var(--card-bg); padding: 1.5rem; text-align: center; }
+    .ws-val { font-family: 'Space Mono', monospace; font-size: 1.7rem; font-weight: 700; color: var(--primary); letter-spacing: -1px; }
+    .ws-label { font-size: .68rem; color: var(--text-muted); margin-top: .3rem; letter-spacing: .06em; text-transform: uppercase; }
+
+    /* ── INTEGRATION ── */
+    .integration-outer {
+      background: rgba(0,212,170,.02);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+    .integration-inner { max-width: 1200px; margin: 0 auto; padding: 5rem 2rem; }
+
+    /* Quick-start install strip */
+    .install-strip {
+      display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap;
+      background: rgba(5,8,16,.6); border: 1px solid var(--border); border-radius: 8px;
+      padding: 1rem 1.5rem; margin-bottom: 3rem;
+      font-family: 'IBM Plex Mono', monospace; font-size: .8rem;
+    }
+    .install-label { color: var(--primary); font-size: .68rem; letter-spacing: .12em; text-transform: uppercase; flex-shrink: 0; }
+    .install-cmd { color: var(--text-light); flex: 1; }
+    .install-copy { background: transparent; border: 1px solid var(--border); color: var(--text-muted); font-family: 'IBM Plex Mono', monospace; font-size: .68rem; padding: .25rem .6rem; border-radius: 3px; cursor: pointer; transition: all .15s; }
+    .install-copy:hover { border-color: var(--primary); color: var(--primary); }
+
+    /* Steps + code */
+    .steps-code { display: grid; grid-template-columns: 280px 1fr; gap: 1.5rem; align-items: start; }
+    .steps-list { display: flex; flex-direction: column; gap: 2px; }
+    .step-item {
+      display: flex; gap: 1rem; padding: 1rem 1.25rem;
+      background: var(--card-bg); border: 1px solid var(--border);
+      cursor: pointer; transition: all .15s; border-radius: 0;
+    }
+    .step-item:first-child { border-radius: 8px 8px 0 0; }
+    .step-item:last-child { border-radius: 0 0 8px 8px; }
+    .step-item.active { background: rgba(0,212,170,.06); border-color: rgba(0,212,170,.35); }
+    .step-n { font-family: 'IBM Plex Mono', monospace; font-size: .68rem; color: var(--text-muted); flex-shrink: 0; padding-top: 2px; }
+    .step-item.active .step-n { color: var(--primary); }
+    .step-title { font-size: .85rem; font-weight: 600; margin-bottom: .2rem; }
+    .step-item.active .step-title { color: var(--primary); }
+    .step-desc { font-size: .75rem; color: var(--text-muted); line-height: 1.5; font-weight: 300; }
+
+    .code-pane { background: rgba(5,8,16,.8); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+    .code-chrome { display: flex; align-items: center; gap: .4rem; padding: .55rem 1rem; background: rgba(255,255,255,.03); border-bottom: 1px solid var(--border); }
+    .code-chrome span { width: 9px; height: 9px; border-radius: 50%; background: var(--border); }
+    .code-filename { font-family: 'IBM Plex Mono', monospace; font-size: .66rem; color: var(--text-muted); margin-left: .5rem; }
+    .code-body { padding: 1.5rem; font-family: 'IBM Plex Mono', monospace; font-size: .77rem; line-height: 1.9; overflow-x: auto; min-height: 240px; }
+    .code-panel { display: none; }
+    .code-panel.active { display: block; }
+    .kw{color:#c792ea}.str{color:#c3e88d}.cmt{color:#546e7a;font-style:italic}.fn{color:#82aaff}.num{color:#f78c6c}
+
+    /* Endpoint quick ref */
+    .endpoint-ref {
+      margin-top: 2rem; display: grid; gap: 1px; background: var(--border);
+      border: 1px solid var(--border); border-radius: 8px; overflow: hidden;
+    }
+    .ep-ref-row {
+      display: grid; grid-template-columns: 100px 1fr auto auto;
+      align-items: center; gap: 1rem;
+      background: var(--card-bg); padding: .75rem 1.25rem;
+      font-size: .82rem;
+    }
+    .ep-ref-row:hover { background: rgba(15,21,53,.8); }
+    .ep-ref-route { font-family: 'IBM Plex Mono', monospace; font-weight: 600; color: var(--primary); font-size: .8rem; }
+    .ep-ref-desc { color: var(--text-muted); font-size: .8rem; }
+    .ep-ref-params { font-family: 'IBM Plex Mono', monospace; font-size: .68rem; color: rgba(0,212,170,.5); }
+    .ep-ref-price { font-family: 'IBM Plex Mono', monospace; font-size: .8rem; color: var(--text-light); font-weight: 600; white-space: nowrap; }
+
+    /* ── CTA ── */
+    .cta-section {
+      text-align: center; padding: 6rem 2rem;
+      border-top: 1px solid var(--border); position: relative; z-index: 1;
+    }
+    .cta-section h2 { font-family: 'Space Mono', monospace; font-size: clamp(1.7rem,4vw,2.6rem); font-weight: 700; letter-spacing: -1px; margin-bottom: 1rem; }
+    .cta-section p { font-size: .95rem; color: var(--text-muted); max-width: 460px; margin: 0 auto 2.5rem; line-height: 1.7; font-weight: 300; }
+
+    /* ── FOOTER ── */
+    footer { border-top: 1px solid var(--border); padding: 1.75rem 2.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; position: relative; z-index: 1; }
+    .footer-links { display: flex; gap: 2rem; flex-wrap: wrap; }
+    .footer-links a { color: var(--text-muted); text-decoration: none; font-size: .8rem; transition: color .2s; }
+    .footer-links a:hover { color: var(--primary); }
+    footer p { font-size: .75rem; color: var(--text-muted); font-family: 'IBM Plex Mono', monospace; }
+
+    @media(max-width:900px) {
+      .steps-code { grid-template-columns: 1fr; }
+      .why-grid { grid-template-columns: 1fr; }
+      .ep-ref-row { grid-template-columns: 90px 1fr auto; }
+      .ep-ref-params { display: none; }
+    }
+    @media(max-width:700px) {
+      nav ul { display: none; }
+      .proof-bar { gap: 1.5rem; padding: 1rem 1.5rem; }
+      .compare-table th, .compare-table td { padding: .75rem 1rem; }
+    }
+  </style>
+</head>
+<body>
+<main>
+
+<!-- NAV -->
+<nav>
+  <div class="logo"><span class="logo-dot"></span>SOLSIGS</div>
+  <ul>
+    <li><a href="#endpoints">Endpoints</a></li>
+    <li><a href="/docs">API Docs</a></li>
+    <li><a href="/discover">Discover</a></li>
+    <li><a href="/dashboard">Dashboard</a></li>
+  </ul>
+  <a href="#integrate" class="nav-cta">Get Started →</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-kicker">x402 Protocol · Solana Mainnet · 15 Endpoints Live</div>
+  <h1>Blockchain data APIs<br/>built for <span class="highlight">AI agents</span></h1>
+  <p>15 specialist endpoints. Real-time Solana data. Pay per call in USDC — no API keys, no subscriptions, no accounts.</p>
+  <div class="cta-group">
+    <a href="#endpoints" class="btn btn-primary">View Endpoints</a>
+    <a href="#integrate" class="btn">Integration Guide</a>
+  </div>
+  <div class="proof-bar">
+    <div class="proof-item"><div class="proof-val">14</div><div class="proof-label">Live Workers</div></div>
+    <div class="proof-item"><div class="proof-val">$0.001</div><div class="proof-label">Starting Price</div></div>
+    <div class="proof-item"><div class="proof-val">400ms</div><div class="proof-label">Solana Finality</div></div>
+    <div class="proof-item"><div class="proof-val" id="earned-stat">Live</div><div class="proof-label">Status</div></div>
+  </div>
+</section>
+
+<!-- ENDPOINTS -->
+<div class="section-wrap" id="endpoints">
+  <div class="section-eyebrow">// Endpoints</div>
+  <h2 class="section-title">15 specialist data workers</h2>
+  <p class="section-sub">Each worker runs in an isolated thread. Pay per call in USDC via the x402 standard — no authentication required.</p>
+
+  <div class="services-grid">
+    <div class="service-card">
+      <div class="card-header"><span class="card-route">/dex</span><span class="card-price">$0.002</span></div>
+      <span class="card-method">POST</span>
+      <h3>DEX Price Feed</h3>
+      <p>Live token prices from Jupiter and Birdeye. Pass any SPL token mint — get both sources back in one call.</p>
+      <div class="card-params">mint?: string · token?: string</div>
+    </div>
+    <div class="service-card">
+      <div class="card-header"><span class="card-route">/arb</span><span class="card-price">$0.010</span></div>
+      <span class="card-method">POST</span>
+      <h3>Arbitrage Scanner</h3>
+      <p>Scans top Solana tokens for price gaps between venues. Returns opportunities ranked by spread percentage.</p>
+      <div class="card-params">minSpreadPct?: number</div>
+    </div>
+    <div class="service-card">
+      <div class="card-header"><span class="card-route">/wallet</span><span class="card-price">$0.005</span></div>
+      <span class="card-method">POST</span>
+      <h3>Wallet Intelligence</h3>
+      <p>Score and classify any Solana address. Returns balance, token holdings, tx history, and activity tier.</p>
+      <div class="card-params">address: string</div>
+    </div>
+    <div class="service-card">
+      <div class="card-header"><span class="card-route">/launches</span><span class="card-price">$0.003</span></div>
+      <span class="card-method">POST</span>
+      <h3>Launch Detector</h3>
+      <p>Catches new token launches with a rug risk score. Flags low liquidity, concentrated holders, and missing socials.</p>
+      <div class="card-params">limit?: number</div>
+    </div>
+    <div class="service-card">
+      <div class="card-header"><span class="card-route">/summary</span><span class="card-price">$0.008</span></div>
+      <span class="card-method">POST</span>
+      <h3>On-Chain Summarizer</h3>
+      <p>LLM-powered analysis via Groq. Ask a question about any wallet or get a plain-English DeFi market read.</p>
+      <div class="card-params">address?: string · question?: string</div>
+    </div>
+    <div class="service-card">
+      <div class="card-header"><span class="card-route">/predict</span><span class="card-price">$0.003</span></div>
+      <span class="card-method">POST</span>
+      <h3>Prediction Markets</h3>
+      <p>Polymarket prediction data — real-time odds, volume, and liquidity across politics, crypto, sports, and more.</p>
+      <div class="card-params">query?: string · category?: string · limit?: number</div>
+    </div>
+    <div class="service-card">
+      <div class="card-header"><span class="card-route">/price</span><span class="card-price">$0.003</span></div>
+      <span class="card-method">POST</span>
+      <h3>Price Feed</h3>
+      <p>Batch multi-token DEX pricing with OHLCV candlestick history and token metadata.</p>
+      <div class="card-params">tokens?: list · period?: string</div>
+    </div>
+    <div class="service-card">
+      <div class="card-header"><span class="card-route">/nft</span><span class="card-price">$0.004</span></div>
+      <span class="card-method">POST</span>
+      <h3>NFT Data</h3>
+      <p>NFT floor prices, rarity data, and wash trading detection across Solana marketplaces.</p>
+      <div class="card-params">collection?: string</div>
+    </div>
+    <div class="service-card">
+      <div class="card-header"><span class="card-route">/staking</span><span class="card-price">$0.002</span></div>
+      <span class="card-method">POST</span>
+      <h3>Staking APY</h3>
+      <p>Cross-protocol staking APY comparison (Marinade, Jito, Blaze, Sanctum).</p>
+      <div class="card-params">protocol?: string</div>
+    </div>
+    <div class="service-card">
+      <div class="card-header"><span class="card-route">/whale</span><span class="card-price">$0.006</span></div>
+      <span class="card-method">POST</span>
+      <h3>Whale Tracker</h3>
+      <p>Whale wallet tracking — large transfers, accumulation signals, smart money discovery.</p>
+      <div class="card-params">address?: string · min_amount?: float</div>
+    </div>
+    <div class="service-card">
+      <div class="card-header"><span class="card-route">/alerts</span><span class="card-price">$0.005</span></div>
+      <span class="card-method">POST</span>
+      <h3>Webhook Alerts</h3>
+      <p>Webhook alert registration for price, volume, whale, and launch events.</p>
+      <div class="card-params">alert_type?: string · webhook_url?: string</div>
+    </div>
+    <div class="service-card">
+      <div class="card-header"><span class="card-route">/dev</span><span class="card-price">$0.001</span></div>
+      <span class="card-method">POST</span>
+      <h3>Dev Activity</h3>
+      <p>Protocol dev activity — commit frequency, contributors, audit status.</p>
+      <div class="card-params">protocol?: string · days?: int</div>
+    </div>
+    <div class="service-card">
+      <div class="card-header"><span class="card-route">/social</span><span class="card-price">$0.004</span></div>
+      <span class="card-method">POST</span>
+      <h3>Social Sentiment</h3>
+      <p>On-chain social sentiment and influencer wallet tracking.</p>
+      <div class="card-params">query?: string · source?: string</div>
+    </div>
+    <div class="service-card">
+      <div class="card-header"><span class="card-route">/smartmoney</span><span class="card-price">$0.008</span></div>
+      <span class="card-method">POST</span>
+      <h3>Smart Money</h3>
+      <p>Track top Solana traders. Copy-trade signals, portfolio analysis, and wallet intelligence.</p>
+      <div class="card-params">minScore?: number · topN?: int · wallets?: string[]</div>
+    </div>
+    <div class="service-card">
+      <div class="card-header"><span class="card-route">/rpc</span><span class="card-price">$0.001</span></div>
+      <p>Intelligent Solana RPC proxy. Routes across Helius, Ankr, and public nodes. Slowest endpoint is auto-demoted.</p>
+      <div class="card-params">method: string · params?: array</div>
+    </div>
+  </div>
+</div>
+
+<!-- PRICING COMPARISON — single table, rows always aligned -->
+<div class="compare-outer" id="pricing">
+  <div class="section-eyebrow">// Pricing</div>
+  <h2 class="section-title">Stop paying for idle time</h2>
+  <p class="section-sub">Subscriptions charge you whether your agent calls once or ten thousand times. SolSigs charges only for what runs.</p>
+
+  <div class="compare-table-wrap">
+    <table class="compare-table">
+      <thead>
+        <tr>
+          <th></th>
+          <th>
+            <div class="th-label">Traditional APIs</div>
+            <div class="th-title">Monthly subscriptions</div>
+            <div class="th-sub">Birdeye · Nansen · Helius · RugCheck</div>
+          </th>
+          <th class="col-highlight">
+            <div class="th-label">SolSigs</div>
+            <div class="th-title">Pay per call</div>
+            <div class="th-sub">USDC on Solana via x402</div>
+            <div class="th-badge">built for agents</div>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Pricing model</td>
+          <td class="old">Fixed monthly fee</td>
+          <td class="good col-highlight">$0.001 – $0.010 per call</td>
+        </tr>
+        <tr>
+          <td>Quiet months</td>
+          <td class="bad">Pay full price</td>
+          <td class="good col-highlight">Pay nothing</td>
+        </tr>
+        <tr>
+          <td>API key or signup</td>
+          <td class="bad">Required</td>
+          <td class="good col-highlight">Not required</td>
+        </tr>
+        <tr>
+          <td>Works with AI agents</td>
+          <td class="bad">Manual integration</td>
+          <td class="good col-highlight">Native — x402 standard</td>
+        </tr>
+        <tr>
+          <td>Minimum monthly cost</td>
+          <td class="old">$49 – $399 / mo</td>
+          <td class="good col-highlight">$0.00</td>
+        </tr>
+        <tr>
+          <td>1,000 calls to /dex</td>
+          <td class="old">Bundled in $99 / mo plan</td>
+          <td class="good col-highlight">$2.00 total</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- WHY SOLANA -->
+<div class="why-outer">
+  <div class="why-grid">
+    <div class="why-text">
+      <div class="section-eyebrow">// Why Solana</div>
+      <h2>Built for speed.<br/>Priced for scale.</h2>
+      <p>Most x402 services target Base or Ethereum. We chose Solana because micropayments only make sense when the transaction itself doesn't cost more than the data.</p>
+      <ul class="why-list">
+        <li><span><strong>400ms finality</strong> vs Base 12s — settle payment before the data goes stale</span></li>
+        <li><span><strong>$0.00025 per transaction</strong> vs Base $0.001+ — micropayments that actually scale</span></li>
+        <li><span><strong>No external facilitator</strong> — custom middleware, no third-party dependencies</span></li>
+        <li><span><strong>x402 discovery endpoint</strong> at <code style="font-size:.78em;color:var(--primary)">/.well-known/x402.json</code> for agent auto-discovery</span></li>
+      </ul>
+    </div>
+    <div class="why-stats">
+      <div class="why-stat"><div class="ws-val">400ms</div><div class="ws-label">Finality</div></div>
+      <div class="why-stat"><div class="ws-val">$0.00025</div><div class="ws-label">Per Transaction</div></div>
+      <div class="why-stat"><div class="ws-val">7</div><div class="ws-label">Parallel Workers</div></div>
+      <div class="why-stat"><div class="ws-val">0</div><div class="ws-label">Facilitator Deps</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- INTEGRATION -->
+<div class="integration-outer" id="integrate">
+  <div class="integration-inner">
+    <div class="section-eyebrow">// Integration</div>
+    <h2 class="section-title">Add it to your project in minutes</h2>
+    <p class="section-sub">Any code that can sign a Solana transaction can call SolSigs. Four steps. No accounts, no OAuth, no API key management.</p>
+
+    <!-- Install -->
+    <div class="install-strip">
+      <span class="install-label">Install</span>
+      <span class="install-cmd">npm install @solana/web3.js @solana/spl-token bs58</span>
+      <button class="install-copy" onclick="copyInstall(this)">copy</button>
+    </div>
+
+    <!-- Steps + code pane -->
+    <div class="steps-code">
+      <div class="steps-list">
+        <div class="step-item active" onclick="setStep(0)">
+          <div class="step-n">01</div>
+          <div>
+            <div class="step-title">Probe the endpoint</div>
+            <div class="step-desc">POST to any route — no payment header. Server returns 402 with exact requirements.</div>
+          </div>
+        </div>
+        <div class="step-item" onclick="setStep(1)">
+          <div class="step-n">02</div>
+          <div>
+            <div class="step-title">Read the 402 response</div>
+            <div class="step-desc">Pull out payTo (wallet address), maxAmountRequired (micro-USDC), and the USDC mint.</div>
+          </div>
+        </div>
+        <div class="step-item" onclick="setStep(2)">
+          <div class="step-n">03</div>
+          <div>
+            <div class="step-title">Transfer USDC on-chain</div>
+            <div class="step-desc">Send an SPL token transfer for the exact amount. Save the confirmed transaction signature.</div>
+          </div>
+        </div>
+        <div class="step-item" onclick="setStep(3)">
+          <div class="step-n">04</div>
+          <div>
+            <div class="step-title">Retry with X-PAYMENT</div>
+            <div class="step-desc">Same POST again, but add X-PAYMENT: &lt;signature&gt;. You get 200 + your data.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="code-pane">
+        <div class="code-chrome">
+          <span></span><span></span><span></span>
+          <span class="code-filename" id="codeFile">01-probe.js</span>
+        </div>
+        <div class="code-body">
+
+          <div class="code-panel active" id="cp0">
+<span class="cmt">// POST without any payment header → expect 402</span>
+<span class="kw">const</span> probe = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">'https://solsigs.com/dex'</span>, {
+  method: <span class="str">'POST'</span>,
+  headers: { <span class="str">'Content-Type'</span>: <span class="str">'application/json'</span> },
+  body: JSON.<span class="fn">stringify</span>({
+    mint: <span class="str">'So11111111111111111111111111111111111111112'</span>
+  })
+});
+
+<span class="cmt">// Status will be 402 — this is expected
+// {
+//   "x402Version": 1,
+//   "accepts": [{
+//     "payTo": "HZAkkKbhN9hf...",
+//     "maxAmountRequired": "2000",   ← 0.002 USDC
+//     "asset": "EPjFWdd5...",        ← USDC mint
+//     "network": "solana-mainnet-beta"
+//   }]
+// }</span>
+          </div>
+
+          <div class="code-panel" id="cp1">
+<span class="cmt">// Destructure exactly what you need from accepts[0]</span>
+<span class="kw">const</span> body = <span class="kw">await</span> probe.<span class="fn">json</span>();
+<span class="kw">const</span> {
+  payTo,              <span class="cmt">// Solana wallet address to pay</span>
+  maxAmountRequired,  <span class="cmt">// "2000" = 0.002 USDC (6 decimals)</span>
+  asset               <span class="cmt">// USDC mint address</span>
+} = body.accepts[<span class="num">0</span>];
+
+<span class="cmt">// payTo:
+//   "HZAkkKbhN9hfJBiNxCuwap7XtPXgniy9MVjJR2MvHSJi"
+// maxAmountRequired: "2000"
+// asset: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"</span>
+          </div>
+
+          <div class="code-panel" id="cp2">
+<span class="kw">import</span> { Transaction } <span class="kw">from</span> <span class="str">'@solana/web3.js'</span>;
+<span class="kw">import</span> { createTransferInstruction,
+  getOrCreateAssociatedTokenAccount }
+  <span class="kw">from</span> <span class="str">'@solana/spl-token'</span>;
+
+<span class="cmt">// Get/create the destination token account</span>
+<span class="kw">const</span> destAta = <span class="kw">await</span> <span class="fn">getOrCreateAssociatedTokenAccount</span>(
+  connection, payer,
+  <span class="kw">new</span> <span class="fn">PublicKey</span>(asset),
+  <span class="kw">new</span> <span class="fn">PublicKey</span>(payTo)
+);
+
+<span class="cmt">// Build and send the transfer</span>
+<span class="kw">const</span> ix = <span class="fn">createTransferInstruction</span>(
+  sourceAta,           <span class="cmt">// your USDC token account</span>
+  destAta.address,     <span class="cmt">// destination ATA</span>
+  payer.publicKey,
+  <span class="fn">parseInt</span>(maxAmountRequired)
+);
+<span class="kw">const</span> sig = <span class="kw">await</span> <span class="fn">sendAndConfirmTransaction</span>(
+  connection, <span class="kw">new</span> <span class="fn">Transaction</span>().<span class="fn">add</span>(ix), [payer]
+);
+<span class="cmt">// sig = "5LaUvNCMn7p..."  ← save this</span>
+          </div>
+
+          <div class="code-panel" id="cp3">
+<span class="cmt">// Same request, now with X-PAYMENT header</span>
+<span class="kw">const</span> res = <span class="kw">await</span> <span class="fn">fetch</span>(<span class="str">'https://solsigs.com/dex'</span>, {
+  method: <span class="str">'POST'</span>,
+  headers: {
+    <span class="str">'Content-Type'</span>: <span class="str">'application/json'</span>,
+    <span class="str">'X-PAYMENT'</span>: sig   <span class="cmt">// confirmed Solana tx signature</span>
+  },
+  body: JSON.<span class="fn">stringify</span>({
+    mint: <span class="str">'So11111111111111111111111111111111111111112'</span>
+  })
+});
+
+<span class="cmt">// res.status === 200 ✓</span>
+<span class="kw">const</span> { success, data } = <span class="kw">await</span> res.<span class="fn">json</span>();
+<span class="cmt">// data.sources.jupiter.price → 182.45
+// data.sources.birdeye.value → 182.38</span>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Endpoint quick reference -->
+    <div style="margin-top:2.5rem">
+      <div style="font-family:'IBM Plex Mono',monospace;font-size:.68rem;color:var(--text-muted);letter-spacing:.12em;text-transform:uppercase;margin-bottom:.75rem">All endpoints — quick reference</div>
+      <div class="endpoint-ref">
+        <div class="ep-ref-row"><span class="ep-ref-route">/dex</span><span class="ep-ref-desc">DEX prices — Jupiter + Birdeye</span><span class="ep-ref-params">mint?, token?</span><span class="ep-ref-price">$0.002</span></div>
+        <div class="ep-ref-row"><span class="ep-ref-route">/arb</span><span class="ep-ref-desc">Arbitrage opportunities by spread</span><span class="ep-ref-params">minSpreadPct?</span><span class="ep-ref-price">$0.010</span></div>
+        <div class="ep-ref-row"><span class="ep-ref-route">/wallet</span><span class="ep-ref-desc">Wallet score + classification</span><span class="ep-ref-params">address</span><span class="ep-ref-price">$0.005</span></div>
+        <div class="ep-ref-row"><span class="ep-ref-route">/launches</span><span class="ep-ref-desc">New tokens + rug risk score</span><span class="ep-ref-params">limit?</span><span class="ep-ref-price">$0.003</span></div>
+        <div class="ep-ref-row"><span class="ep-ref-route">/summary</span><span class="ep-ref-desc">LLM on-chain analysis (Groq)</span><span class="ep-ref-params">address?, question?</span><span class="ep-ref-price">$0.008</span></div>
+                <div class="ep-ref-row"><span class="ep-ref-route">/predict</span><span class="ep-ref-desc">Polymarket prediction markets</span><span class="ep-ref-params">query?, category?, limit?</span><span class="ep-ref-price">$0.003</span></div>
+<div class="ep-ref-row"><span class="ep-ref-route">/rpc</span><span class="ep-ref-desc">Load-balanced Solana RPC proxy</span><span class="ep-ref-params">method, params?</span><span class="ep-ref-price">$0.001</span></div>
+      </div>
+    </div>
+
+    <!-- Discovery note -->
+    <div style="margin-top:1.25rem;padding:.9rem 1.25rem;background:rgba(0,212,170,.03);border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;gap:1rem;flex-wrap:wrap">
+      <span style="font-family:'IBM Plex Mono',monospace;font-size:.65rem;color:var(--text-muted);letter-spacing:.1em;text-transform:uppercase;flex-shrink:0">x402 Discovery</span>
+      <span style="font-size:.82rem;color:var(--text-muted)">Machine-readable for x402-compatible clients:</span>
+      <a href="/.well-known/x402.json" style="font-family:'IBM Plex Mono',monospace;font-size:.78rem;color:var(--primary);text-decoration:none;white-space:nowrap">solsigs.com/.well-known/x402.json ↗</a>
+    </div>
+  </div>
+</div>
+
+<!-- CTA -->
+<section class="cta-section">
+  <h2>Start querying.<br/><span style="background:linear-gradient(135deg,var(--primary),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">No signup required.</span></h2>
+  <p>Fund a Solana wallet with a few USDC. Point your agent at the discovery endpoint. That's it.</p>
+  <div class="cta-group" style="justify-content:center">
+    <a href="#integrate" class="btn btn-primary">Get Started Free</a>
+    <a href="#integrate" class="btn">Read Integration Guide</a>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="footer-links">
+    <a href="/stats">Stats API</a>
+    <a href="/revenue">Live Revenue</a>
+    <a href="/validate">Validator</a>
+    <a href="/docs">API Docs</a>
+    <a href="/discover">Discover</a>
+    <a href="/dashboard">Dashboard</a>
+    <a href="/.well-known/x402.json">x402 Discovery</a>
+    <a href="https://github.com/gra-kir/solsigs-reference-agent">Reference Agent</a>
+    <a href="https://x402.org">x402.org</a>
+    <a href="https://x402scan.com">x402scan</a>
+    <a href="https://solana.com">Solana</a>
+  </div>
+  <p>© 2026 SolSigs · Built for the agentic economy</p>
+</footer>
+
+<script>
+  const FILES = ['01-probe.js','02-parse-402.js','03-send-usdc.js','04-fetch-data.js'];
+
+  function setStep(n) {
+    document.querySelectorAll('.step-item').forEach((el,i) => el.classList.toggle('active', i===n));
+    document.querySelectorAll('.code-panel').forEach((el,i) => el.classList.toggle('active', i===n));
+    document.getElementById('codeFile').textContent = FILES[n];
+  }
+
+  function copyInstall(btn) {
+    navigator.clipboard.writeText('npm install @solana/web3.js @solana/spl-token bs58');
+    btn.textContent = 'copied!'; btn.style.color = 'var(--primary)'; btn.style.borderColor = 'var(--primary)';
+    setTimeout(() => { btn.textContent = 'copy'; btn.style.color = ''; btn.style.borderColor = ''; }, 2000);
+  }
+
+  async function loadStats() {
+    try {
+      const d = await (await fetch('/stats')).json();
+      const el = document.getElementById('earned-stat');
+      if (el && d.totalEarned > 0) {
+        el.textContent = '$' + (d.totalEarned||0).toFixed(3);
+        el.closest('.proof-item').querySelector('.proof-label').textContent = 'Total Earned';
+      }
+    } catch(_) {}
+  }
+  loadStats();
+
+  // Scroll reveal for cards
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) { e.target.style.opacity='1'; e.target.style.transform='translateY(0)'; }
+    });
+  }, { threshold: 0.1 });
+  document.querySelectorAll('.service-card, .why-stat, .flow-step').forEach(el => {
+    el.style.opacity = '0'; el.style.transform = 'translateY(20px)';
+    el.style.transition = 'all .5s ease-out'; obs.observe(el);
+  });
+
+  // Smooth scroll
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', e => {
+      const t = document.querySelector(a.getAttribute('href'));
+      if (t) { e.preventDefault(); t.scrollIntoView({ behavior: 'smooth' }); }
+    });
+  });
+</script>
+</body>
+</html>
