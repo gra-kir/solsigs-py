@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Live Revenue — SolSigs</title>
+<meta name="description" content="SolSigs in public: live calls, USDC revenue, and on-chain settlement receipts. Every number links to a real Solana transaction.">
+<style>
+  :root{
+    --bg:#0a0e12; --panel:#10161d; --line:#1d2733;
+    --txt:#d7e2ec; --dim:#6b7d8f; --accent:#39d98a;
+    --mono:'SF Mono',ui-monospace,'Cascadia Code',Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--txt);font-family:var(--mono);min-height:100vh;padding:24px 16px 64px}
+  .wrap{max-width:860px;margin:0 auto}
+  .eyebrow{color:var(--dim);font-size:12px;letter-spacing:.12em;text-transform:uppercase}
+  h1{font-size:clamp(22px,5vw,32px);font-weight:600;margin:10px 0 4px}
+  .live{display:inline-flex;align-items:center;gap:6px;color:var(--accent);font-size:12px;margin-bottom:28px}
+  .dot{width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pulse 2s infinite}
+  @keyframes pulse{50%{opacity:.3}}
+  @media (prefers-reduced-motion:reduce){.dot{animation:none}}
+
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:28px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:18px}
+  .card .k{color:var(--dim);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+  .card .v{font-size:clamp(22px,4vw,30px);font-weight:700;margin-top:6px}
+  .card .v.green{color:var(--accent)}
+
+  h2{font-size:13px;color:var(--dim);letter-spacing:.08em;text-transform:uppercase;margin:0 0 10px}
+  table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:hidden;font-size:13px}
+  th,td{text-align:left;padding:11px 14px;border-bottom:1px solid var(--line)}
+  th{color:var(--dim);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+  tr:last-child td{border-bottom:0}
+  td.num{text-align:right;font-variant-numeric:tabular-nums}
+  .bar{height:4px;background:var(--accent);border-radius:2px;margin-top:6px;min-width:2px}
+  section{margin-bottom:28px}
+  a{color:var(--accent);text-decoration:none}
+  .tx{word-break:break-all;color:var(--dim)}
+  .tx a{font-size:12px}
+  .empty{color:var(--dim);font-size:13px;padding:18px;background:var(--panel);border:1px solid var(--line);border-radius:8px}
+  footer{color:var(--dim);font-size:12px;line-height:1.7;margin-top:36px}
+  #updated{color:var(--dim);font-size:11px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">// solsigs in public</div>
+  <h1>Live revenue</h1>
+  <div class="live"><span class="dot"></span>settling on Solana mainnet · auto-refreshes every 60s · <span id="updated"></span></div>
+
+  <div class="grid">
+    <div class="card"><div class="k">Calls today</div><div class="v" id="callsToday">—</div></div>
+    <div class="card"><div class="k">USDC today</div><div class="v green" id="revToday">—</div></div>
+    <div class="card"><div class="k">Calls all-time</div><div class="v" id="callsAll">—</div></div>
+    <div class="card"><div class="k">USDC all-time</div><div class="v green" id="revAll">—</div></div>
+  </div>
+
+  <section>
+    <h2>By endpoint (last 7 days)</h2>
+    <div id="endpointsBox"><div class="empty">Loading…</div></div>
+  </section>
+
+  <section>
+    <h2>Recent settlements</h2>
+    <div id="txBox"><div class="empty">Loading…</div></div>
+  </section>
+
+  <footer>
+    Every payment above is a real USDC transfer you can verify on Solscan.
+    SolSigs is 22 Solana data endpoints for AI agents, paid per call via the
+    <a href="https://x402.org">x402</a> standard — no API keys, no subscriptions.
+    <a href="https://solsigs.com">Try it</a> · <a href="https://x.com/Solsigs_">@Solsigs_</a>
+  </footer>
+</div>
+
+<script>
+/* ============================================================
+   CONFIG — points at the SolSigs public stats API.
+
+   Actual /stats response shape (sanitized, public, rate-limited):
+   {
+     "callsToday": 12, "revenueTodayUsdc": 0.045,
+     "callsAllTime": 464, "revenueAllTimeUsdc": 2.285,
+     "endpoints": [{"path":"/dex","calls7d":86,"revenue7d":0.172}, ...],
+     "recentTx": [{"sig":"4PM6...","endpoint":"/rpc","amountUsdc":0.001,"ts":"2026-..."}, ...],
+     "earnings": { "totalEarned": 2.285, "last24h": 0.01, "earningsByWorker": [...] },
+     "uptime_seconds": 1234, "updatedAt": "2026-..."
+   }
+   mapStats() also tolerates the fields nested under `earnings` for
+   forward/backward compatibility with the internal stats payload.
+   ============================================================ */
+const STATS_URL = '/stats';
+
+function mapStats(raw){
+  const e = (raw && raw.earnings) || {};
+  const pick = (k, ...alts) => {
+    for (const src of [raw, e]) {
+      if (src && src[k] != null) return src[k];
+    }
+    for (const a of alts) {
+      for (const src of [raw, e]) {
+        if (src && src[a] != null) return src[a];
+      }
+    }
+    return undefined;
+  };
+  return {
+    callsToday:         pick('callsToday'),
+    revenueTodayUsdc:   pick('revenueTodayUsdc'),
+    callsAllTime:       pick('callsAllTime'),
+    revenueAllTimeUsdc: pick('revenueAllTimeUsdc', 'totalEarned'),
+    endpoints:          pick('endpoints') || [],
+    recentTx:           pick('recentTx') || [],
+  };
+}
+
+function usd(n){ return '$' + Number(n||0).toFixed(n>=10?2:3); }
+
+async function load(){
+  try{
+    const res = await fetch(STATS_URL);
+    if(!res.ok) throw new Error('HTTP ' + res.status);
+    const raw = await res.json();
+    const s = mapStats(raw);
+    set('callsToday', (s.callsToday ?? 0).toLocaleString());
+    set('revToday', usd(s.revenueTodayUsdc));
+    set('callsAll', (s.callsAllTime ?? 0).toLocaleString());
+    set('revAll', usd(s.revenueAllTimeUsdc));
+    renderEndpoints(s.endpoints || []);
+    renderTx(s.recentTx || []);
+    set('updated', 'updated ' + new Date().toLocaleTimeString());
+  }catch(e){
+    document.getElementById('endpointsBox').innerHTML =
+      '<div class="empty">Could not load '+STATS_URL+' — '+esc(e.message)+'</div>';
+  }
+}
+function set(id,v){ document.getElementById(id).textContent = v; }
+
+function renderEndpoints(eps){
+  const box = document.getElementById('endpointsBox');
+  if(!eps.length){ box.innerHTML = '<div class="empty">No calls in the last 7 days — yet.</div>'; return; }
+  const max = Math.max(...eps.map(e=>e.calls7d||0), 1);
+  box.innerHTML = '<table><thead><tr><th>Endpoint</th><th class="num">Calls</th><th class="num">USDC</th></tr></thead><tbody>' +
+    eps.sort((a,b)=>(b.calls7d||0)-(a.calls7d||0)).map(e=>
+      '<tr><td>'+esc(e.path)+'<div class="bar" style="width:'+Math.round((e.calls7d||0)/max*100)+'%"></div></td>'+
+      '<td class="num">'+(e.calls7d||0)+'</td><td class="num">'+usd(e.revenue7d)+'</td></tr>'
+    ).join('') + '</tbody></table>';
+}
+
+function renderTx(txs){
+  const box = document.getElementById('txBox');
+  if(!txs.length){ box.innerHTML = '<div class="empty">No settlements yet — the first one will appear here with a Solscan link.</div>'; return; }
+  box.innerHTML = '<table><thead><tr><th>Endpoint</th><th class="num">USDC</th><th>Tx</th></tr></thead><tbody>' +
+    txs.slice(0,12).map(t=>
+      '<tr><td>'+esc(t.endpoint)+'</td><td class="num">'+usd(t.amountUsdc)+'</td>'+
+      '<td class="tx"><a href="https://solscan.io/tx/'+encodeURIComponent(t.sig)+'" target="_blank" rel="noopener">'+
+      esc(String(t.sig).slice(0,10))+'…</a></td></tr>'
+    ).join('') + '</tbody></table>';
+}
+
+function esc(s){ const d=document.createElement('div'); d.textContent=s??''; return d.innerHTML; }
+
+load();
+setInterval(load, 60000);
+</script>
+</body>
+</html>
