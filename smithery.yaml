@@ -1,0 +1,34 @@
+# Smithery configuration file: https://smithery.ai/docs/config#smitheryyaml
+# Place at the ROOT of github.com/gra-kir/solsigs-py
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    required:
+      - solsigsMcpKey
+    properties:
+      solsigsMcpKey:
+        type: string
+        title: "Your Solana wallet private key (base58)"
+        description: "Base58 private key of YOUR OWN Solana wallet, funded with USDC. SolSigs charges per call from this wallet. This is never a SolSigs key."
+      solanaRpcUrl:
+        type: string
+        title: "Solana RPC URL (optional)"
+        description: "Optional. Defaults to public mainnet."
+      solsigsBaseUrl:
+        type: string
+        title: "SolSigs API base URL (optional)"
+        default: "https://solsigs.com"
+        description: "Optional. Defaults to https://solsigs.com."
+  commandFunction: |-
+    (config) => ({
+      command: 'uvx',
+      args: ['solsigs-mcp'],
+      env: {
+        SOLSIGS_MCP_KEY: config.solsigsMcpKey,
+        ...(config.solanaRpcUrl ? { SOLANA_RPC_URL: config.solanaRpcUrl } : {}),
+        ...(config.solsigsBaseUrl ? { SOLSIGS_BASE_URL: config.solsigsBaseUrl } : {})
+      }
+    })
+  exampleConfig:
+    solsigsMcpKey: "your-base58-wallet-private-key"
