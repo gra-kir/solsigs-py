@@ -11,4 +11,4 @@ Usage:
     MCP_TRANSPORT=sse solsigs-mcp  # Start with SSE on 127.0.0.1:3001
 """
 
-__version__ = "0.1.3"
+__version__ = "0.2.0"

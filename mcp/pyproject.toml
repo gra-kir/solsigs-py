@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "solsigs-mcp"
-version = "0.1.2"
+version = "0.2.0"
 description = "SolSigs MCP Server — AI Agent Gateway to Solana data via x402 micropayments"
 readme = "README.md"
 license = {text = "MIT"}

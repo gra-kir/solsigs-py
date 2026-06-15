@@ -2,13 +2,13 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.gra-kir/solsigs-mcp",
   "title": "SolSigs MCP",
-  "description": "22 Solana tools for AI agents via x402 micropayments. pip install solsigs-mcp",
-  "version": "0.1.2",
+  "description": "22 Solana on-chain data tools for AI agents via x402 micropayments. pip install solsigs-mcp",
+  "version": "0.2.0",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "solsigs-mcp",
-      "version": "0.1.2",
+      "version": "0.2.0",
       "transport": {
         "type": "stdio"
       }
