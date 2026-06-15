@@ -193,3 +193,58 @@ class X402Client:
                 return
             time.sleep(1)
         raise RuntimeError(f"Transaction {signature} not confirmed within {timeout}s")
+
+
+class FreeTierClient:
+    """
+    Free-tier client. Claims a key from /freetier/claim on first use and
+    passes it via X-Free-Tier-Key header (50 calls per key).
+
+    Additive only — no payment logic here. The paid path (X402Client) is
+    completely separate and unchanged.
+    """
+
+    def __init__(self):
+        self._key: str | None = None
+
+    def _claim_key(self) -> str:
+        with httpx.Client(timeout=15) as client:
+            resp = client.post(f"{SOLSIGS_BASE}/freetier/claim")
+        if resp.status_code != 200:
+            raise RuntimeError(
+                f"Free-tier claim failed ({resp.status_code}). "
+                "Set SOLSIGS_MCP_KEY to use paid mode."
+            )
+        data = resp.json()
+        # Accept whichever field name the server uses
+        key = data.get("key") or data.get("freeTierKey") or data.get("token", "")
+        if not key:
+            raise RuntimeError("Free-tier claim returned no key. Set SOLSIGS_MCP_KEY for paid mode.")
+        return key
+
+    @property
+    def key(self) -> str:
+        if not self._key:
+            self._key = self._claim_key()
+        return self._key
+
+    def call(self, endpoint: str, payload: dict | None = None, timeout: int = 30) -> dict:
+        url = f"{SOLSIGS_BASE}{endpoint}"
+        with httpx.Client(timeout=timeout) as client:
+            resp = client.post(
+                url,
+                json=payload or {},
+                headers={"X-Free-Tier-Key": self.key},
+            )
+        if resp.status_code == 200:
+            return resp.json()
+        if resp.status_code == 402:
+            try:
+                err = resp.json().get("error", "")
+            except Exception:
+                err = resp.text[:200]
+            raise RuntimeError(
+                f"Free tier exhausted — {err} "
+                "Set SOLSIGS_MCP_KEY to use paid mode."
+            )
+        raise RuntimeError(f"Unexpected status {resp.status_code}: {resp.text[:500]}")
