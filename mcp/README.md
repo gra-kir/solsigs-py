@@ -6,16 +6,88 @@ AI Agent Gateway to Solana blockchain data via x402 micropayments.
 
 ## What is this?
 
-SolSigs MCP is a [Model Context Protocol](https://modelcontextprotocol.io/) server that gives AI agents access to 21 Solana data tools — DEX prices, arbitrage scanning, wallet intel, token launches, AI market summaries, prediction markets, perps data, and more.
+SolSigs MCP is a [Model Context Protocol](https://modelcontextprotocol.io/) server that gives AI agents access to 23 Solana data tools — DEX prices, arbitrage scanning, wallet intel, token launches, AI market summaries, prediction markets, perps data, memecoin trenches, and more.
 
-Each tool costs fractions of a cent USDC via the [x402 protocol](https://x402.org) — start with 50 free calls.
+Each tool costs fractions of a cent USDC via the [x402 protocol](https://x402.org). No key required — start with 50 free calls automatically.
 
 ## Quick Start
 
+**Free tier (no key needed):**
 ```bash
 pip install solsigs-mcp
-export SOLSIGS_MCP_KEY="your-base58-private-key"
 solsigs-mcp
+# → SolSigs MCP Server starting (stdio) [FREE-TIER MODE]...
+#   50 free calls per session. Set SOLSIGS_MCP_KEY for paid mode.
+```
+
+**Paid mode (unlimited calls):**
+```bash
+pip install solsigs-mcp
+export SOLSIGS_MCP_KEY="<your-base58-solana-private-key>"
+solsigs-mcp
+```
+
+## Claude Desktop
+
+Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "solsigs": {
+      "command": "solsigs-mcp"
+    }
+  }
+}
+```
+
+With a funded wallet:
+```json
+{
+  "mcpServers": {
+    "solsigs": {
+      "command": "solsigs-mcp",
+      "env": {
+        "SOLSIGS_MCP_KEY": "<your-base58-solana-private-key>"
+      }
+    }
+  }
+}
+```
+
+## Cursor / VS Code
+
+Add to `.cursor/mcp.json` (or `.vscode/mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "solsigs": {
+      "command": "solsigs-mcp"
+    }
+  }
+}
+```
+
+## SSE Mode (remote/multi-client)
+
+```bash
+export MCP_TRANSPORT=sse
+export MCP_HOST=0.0.0.0
+export SOLSIGS_MCP_KEY="<your-key>"   # optional
+solsigs-mcp
+# → SSE endpoint at http://0.0.0.0:3001/sse
+```
+
+Client config:
+```json
+{
+  "mcpServers": {
+    "solsigs": {
+      "url": "http://localhost:3001/sse"
+    }
+  }
+}
 ```
 
 ## Tools
@@ -42,38 +114,20 @@ solsigs-mcp
 | `get_alpha_feed` | Alpha feed + signals | $0.006 |
 | `get_wallet_trust` | Wallet trust score | $0.003 |
 | `get_perps_data` | Perps + derivatives | $0.005 |
-| `wallet_status` | Check wallet balance | Free |
+| `get_trenches` | Pump.fun memecoin trenches scanner | $0.003 |
+| `ask_defi_question` | AI verdict on any Solana/DeFi question | $0.008 |
+| `wallet_status` | Check wallet balance / free-tier count | Free |
 
 ## Configuration
 
 | Env Var | Required | Default | Description |
 |---------|----------|---------|-------------|
-| `SOLSIGS_MCP_KEY` | Yes | — | Base58 Solana private key with USDC |
+| `SOLSIGS_MCP_KEY` | No | — | Base58 Solana private key with USDC (omit for free tier) |
 | `SOLANA_RPC_URL` | No | Mainnet public | Solana RPC endpoint |
 | `SOLSIGS_BASE_URL` | No | `https://solsigs.com` | SolSigs API base |
 | `MCP_TRANSPORT` | No | `stdio` | `stdio` or `sse` |
 | `MCP_HOST` | No | `127.0.0.1` | SSE bind address |
 | `MCP_PORT` | No | `3001` | SSE port |
-
-## SSE Mode
-
-```bash
-pip install solsigs-mcp
-export SOLSIGS_MCP_KEY="your-key"
-export MCP_TRANSPORT=sse
-export MCP_HOST=0.0.0.0
-solsigs-mcp
-# → SSE endpoint at http://0.0.0.0:3001/sse
-```
-
-Configure your MCP client with:
-```json
-{
-  "solsigs": {
-    "url": "http://localhost:3001/sse"
-  }
-}
-```
 
 ## License
 
