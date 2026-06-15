@@ -1,0 +1,42 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "solsigs-mcp"
+version = "0.1.2"
+description = "SolSigs MCP Server — AI Agent Gateway to Solana data via x402 micropayments"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+authors = [
+    {name = "SolSigs"},
+]
+keywords = ["solana", "mcp", "x402", "micropayments", "ai", "blockchain"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Software Development :: Libraries",
+]
+dependencies = [
+    "mcp>=1.20.0",
+    "httpx>=0.28.0",
+    "solana>=0.35.0",
+    "solders>=0.20.0",
+]
+
+[project.urls]
+Homepage = "https://solsigs.com"
+Documentation = "https://solsigs.com/docs"
+Repository = "https://github.com/gra-kir/solsigs-py"
+
+[project.scripts]
+solsigs-mcp = "solsigs_mcp.server:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/solsigs_mcp"]
