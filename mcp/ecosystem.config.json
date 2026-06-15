@@ -1,0 +1,19 @@
+{
+  "apps": [{
+    "name": "solsigs-mcp",
+    "script": "server.py",
+    "cwd": "/root/solsigs-mcp",
+    "interpreter": "python3",
+    "env": {
+      "MCP_TRANSPORT": "sse",
+      "MCP_HOST": "127.0.0.1",
+      "MCP_PORT": "3001",
+      "SOLSIGS_BASE_URL": "https://solsigs.com",
+      "SOLANA_RPC_URL": "https://api.mainnet-beta.solana.com",
+      "SOLSIGS_MCP_KEY": "PLACEHOLDER_REPLACE_WITH_ACTUAL_KEY"
+    },
+    "max_restarts": 5,
+    "restart_delay": 5000,
+    "autorestart": true
+  }]
+}
