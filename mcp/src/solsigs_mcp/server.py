@@ -376,7 +376,7 @@ def ask_defi_question(question: str) -> dict:
     Args:
         question: Your question about Solana, DeFi, tokens, wallets, or market conditions.
     """
-    return _client.call("/ask", {"question": question})
+    return _client.call("/ask", {"query": question})
 
 
 @mcp.tool()
