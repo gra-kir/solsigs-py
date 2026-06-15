@@ -6,7 +6,7 @@ AI Agent Gateway to Solana blockchain data via x402 micropayments.
 
 ## What is this?
 
-SolSigs MCP is a [Model Context Protocol](https://modelcontextprotocol.io/) server that gives AI agents access to 23 Solana data tools — DEX prices, arbitrage scanning, wallet intel, token launches, AI market summaries, prediction markets, perps data, memecoin trenches, and more.
+SolSigs MCP is a [Model Context Protocol](https://modelcontextprotocol.io/) server that gives AI agents access to 22 Solana on-chain data tools — DEX prices, arbitrage scanning, wallet intel, token launches, AI market summaries, prediction markets, perps data, memecoin trenches, and more.
 
 Each tool costs fractions of a cent USDC via the [x402 protocol](https://x402.org). No key required — start with 50 free calls automatically.
 
