@@ -2,14 +2,20 @@
 """
 SolSigs MCP Server — AI Agent Gateway to Solana Data.
 
-Exposes 21 tools (20 SolSigs API endpoints + wallet status). Each tool handles
+Exposes 23 tools (22 SolSigs API endpoints + wallet_status). Each tool handles
 the x402 v2 payment flow automatically: 402 → pay USDC → retry → result.
 
 Supports both stdio (local subprocess) and SSE (remote HTTP) transports.
 Set MCP_TRANSPORT=sse to expose via HTTP on MCP_HOST:MCP_PORT.
 
-Requires:
+Paid mode (recommended):
   SOLSIGS_MCP_KEY=<base58 private key>     # wallet with USDC for payments
+
+Free-tier mode (no key required):
+  Omit SOLSIGS_MCP_KEY — server starts automatically with 50 free calls
+  via /freetier/claim. Set SOLSIGS_MCP_KEY when free calls are exhausted.
+
+Optional:
   SOLANA_RPC_URL=<rpc url>                # (optional) Solana RPC endpoint
   SOLSIGS_BASE_URL=<url>                  # (optional) SolSigs base URL
   MCP_TRANSPORT=stdio|sse                 # (optional, default: stdio)
@@ -25,7 +31,7 @@ from solders.keypair import Keypair
 from solana.rpc.api import Client as SolanaClient
 from spl.token.instructions import get_associated_token_address
 
-from x402_client import X402Client, USDC_MINT, SOLANA_RPC
+from .x402_client import X402Client, FreeTierClient, USDC_MINT, SOLANA_RPC
 
 
 # ── Init ────────────────────────────────────────────────────────
@@ -40,20 +46,37 @@ mcp = FastMCP(
     port=_mcp_port,
 )
 
-# ── Wallet Setup ────────────────────────────────────────────────
+# ── Client Setup (paid or free-tier) ────────────────────────────
 _key_env = os.environ.get("SOLSIGS_MCP_KEY", "")
-if not _key_env:
-    print("ERROR: SOLSIGS_MCP_KEY environment variable required (base58 private key)", file=sys.stderr)
-    sys.exit(1)
+_free_tier_mode = not bool(_key_env)
 
-_keypair = Keypair.from_base58_string(_key_env)
-_client = X402Client(_keypair)
-_solana = SolanaClient(SOLANA_RPC)
-_usdc_ata = get_associated_token_address(_keypair.pubkey(), USDC_MINT)
+if _free_tier_mode:
+    _client = FreeTierClient()
+    _keypair = None
+    _solana = None
+    _usdc_ata = None
+else:
+    try:
+        _keypair = Keypair.from_base58_string(_key_env)
+    except Exception as _e:
+        print(
+            f"ERROR: SOLSIGS_MCP_KEY is not a valid base58 Solana private key ({_e}). "
+            "Unset it to use free-tier mode, or set it to a valid key for paid mode.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+    _client = X402Client(_keypair)
+    _solana = SolanaClient(SOLANA_RPC)
+    _usdc_ata = get_associated_token_address(_keypair.pubkey(), USDC_MINT)
 
 
 def _wallet_info() -> dict:
     """Get wallet info for diagnostics."""
+    if _free_tier_mode:
+        return {
+            "mode": "free-tier",
+            "note": "50 free calls per session via /freetier/claim. Set SOLSIGS_MCP_KEY for paid mode.",
+        }
     try:
         bal = _solana.get_token_account_balance(_usdc_ata)
         usdc = float(bal.value.ui_amount or 0) if bal.value else 0
@@ -260,6 +283,8 @@ def get_social_sentiment(query: str, source: str | None = None, hours: int = 24)
     if source is not None:
         payload["source"] = source
     return _client.call("/social", payload)
+
+
 @mcp.tool()
 def track_smart_money(min_score: float = 30, top_n: int = 5, wallets: list[str] | None = None) -> dict:
     """Track top Solana smart-money wallets with copy-trade signals. Monitors whale portfolios, detects accumulation patterns, and scores wallets 0-100.
@@ -273,7 +298,6 @@ def track_smart_money(min_score: float = 30, top_n: int = 5, wallets: list[str] 
     if wallets is not None:
         payload["wallets"] = wallets
     return _client.call("/smartmoney", payload)
-
 
 
 @mcp.tool()
@@ -334,23 +358,51 @@ def get_perps_data(action: str = "markets", token: str | None = None, address: s
         payload["address"] = address
     return _client.call("/perps", payload)
 
+
+@mcp.tool()
+def get_trenches(limit: int = 20) -> dict:
+    """Pump.fun memecoin trenches scanner. Returns live bonding-curve progress, new-token detection and Raydium graduation alerts. Call to track memecoins pre-graduation.
+
+    Args:
+        limit: Max tokens to return. Default 20.
+    """
+    return _client.call("/trenches", {"limit": limit})
+
+
+@mcp.tool()
+def ask_defi_question(question: str) -> dict:
+    """AI verdict on any Solana/DeFi question, grounded in live on-chain data. Returns a reasoned, data-backed answer. Call as the catch-all when no specific endpoint fits.
+
+    Args:
+        question: Your question about Solana, DeFi, tokens, wallets, or market conditions.
+    """
+    return _client.call("/ask", {"question": question})
+
+
 @mcp.tool()
 def wallet_status() -> dict:
-    """Get the MCP wallet status — USDC balance and Solana address. Use this to check if the wallet has funds for payments before calling other tools."""
+    """Get the MCP wallet status — USDC balance and Solana address (paid mode) or free-tier call count. Use this to check funds before calling other tools."""
     return _wallet_info()
 
 
 # ── Main ────────────────────────────────────────────────────────
-if __name__ == "__main__":
-    info = _wallet_info()
-
-    print(f"SolSigs MCP Server starting ({_transport})...", file=sys.stderr)
-    print(f"  Wallet: {info['address']}", file=sys.stderr)
-    print(f"  USDC:   {info['usdc_balance']:.6f}", file=sys.stderr)
-    print(f"  SOL:    {info['sol_balance']:.6f}", file=sys.stderr)
+def main():
+    if _free_tier_mode:
+        print(f"SolSigs MCP Server starting ({_transport}) [FREE-TIER MODE]...", file=sys.stderr)
+        print("  50 free calls per session. Set SOLSIGS_MCP_KEY for paid mode.", file=sys.stderr)
+    else:
+        info = _wallet_info()
+        print(f"SolSigs MCP Server starting ({_transport})...", file=sys.stderr)
+        print(f"  Wallet: {info['address']}", file=sys.stderr)
+        print(f"  USDC:   {info['usdc_balance']:.6f}", file=sys.stderr)
+        print(f"  SOL:    {info['sol_balance']:.6f}", file=sys.stderr)
 
     if _transport == "sse":
         print(f"  SSE:    http://{_mcp_host}:{_mcp_port}/sse", file=sys.stderr)
         mcp.run(transport="sse")
     else:
         mcp.run()
+
+
+if __name__ == "__main__":
+    main()
