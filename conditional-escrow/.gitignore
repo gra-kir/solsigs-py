@@ -19,3 +19,5 @@ deploy-keypair.json
 
 # Test ledger
 test-ledger
+.mainnet-keys/
+mainnet-*.json

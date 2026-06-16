@@ -5,8 +5,23 @@ scheme. A payer locks SPL tokens that a designated **release authority** may
 release to a fixed recipient before an expiry, or that are refunded to the
 payer. Built with [Anchor](https://www.anchor-lang.com/).
 
-> **Stage 1 — DEVNET ONLY.** This is a standalone program. It does not touch any
-> SolSigs production service. Do not deploy to mainnet from this stage.
+**What `conditional` is:** a deliver-or-refund escrow. Funds settle to the seller
+only if a delivery predicate is satisfied (the resource returned a valid `2xx`
+response), otherwise they refund to the payer. It answers *"did the seller
+actually deliver?"* and is **complementary** to value-oriented schemes like
+`exact` and the `upto` proposal in
+[x402-foundation/x402#873](https://github.com/x402-foundation/x402/issues/873),
+which answer *"how much should be paid?"*. The two compose: `upto` decides the
+amount, `conditional` decides whether delivery happened at all.
+
+> ⚠️ **AUDIT-PENDING — reference design, not production-grade.** This program and
+> harness are a tested reference implementation for discussion. They have **not**
+> been audited. Do not custody material value with them.
+
+> **Scope.** Standalone program; does not touch any SolSigs production service
+> (only outbound HTTPS calls to `solsigs.com`). Verified on **devnet**; a gated
+> mainnet demo (Stage 3) was evaluated but came back **NO-GO** (insufficient
+> burner SOL for deploy rent), so all receipts below are devnet, `err=None`.
 
 ## Security model
 
@@ -141,7 +156,19 @@ payment_id)` tuple can then be initialized again. `payment_id` is therefore a
 uniqueness key for *live* escrows, not a permanent nonce — callers that need
 global single-use semantics must pick fresh `payment_id`s.
 
+## Package contents
+
+| Piece | Location |
+|-------|----------|
+| Scheme spec (house format) | [`specs/schemes/conditional/scheme_conditional_svm.md`](specs/schemes/conditional/scheme_conditional_svm.md) |
+| On-chain program (Anchor) + IDL | `programs/conditional_escrow/`, [`idl/conditional_escrow.json`](idl/conditional_escrow.json) |
+| Off-chain predicate evaluator | [`harness/evaluator.ts`](harness/evaluator.ts) |
+| Reference harness (end-to-end) | [`harness/reference_harness.ts`](harness/reference_harness.ts) |
+| Predicate schema | [`harness/schemas/solsigs-openapi.schema.json`](harness/schemas/solsigs-openapi.schema.json) |
+| 11-rule security suite | [`tests/conditional_escrow.ts`](tests/conditional_escrow.ts) |
+| Draft x402 contribution (for maintainers) | [`contribution/x402-conditional-proposal.md`](contribution/x402-conditional-proposal.md) |
+
 ## Keys & secrets
 
 Keypairs are local and gitignored (`*.keypair.json`, `target/deploy/*`,
-`.devnet-keys/`). No secrets are committed.
+`.devnet-keys/`, `.mainnet-keys/`). No secrets are committed.
