@@ -6,5 +6,5 @@
     "noEmitOnError": false,
     "sourceMap": true
   },
-  "include": ["tests/**/*.ts"]
+  "include": ["tests/**/*.ts", "harness/**/*.ts"]
 }
