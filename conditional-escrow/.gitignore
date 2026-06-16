@@ -1,6 +1,7 @@
 # Anchor / Solana build artifacts
 .anchor
 target
+dist
 **/*.rs.bk
 
 # Node

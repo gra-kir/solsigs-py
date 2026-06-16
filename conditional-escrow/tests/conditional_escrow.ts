@@ -27,8 +27,12 @@ import {
 } from "@solana/spl-token";
 import { assert } from "chai";
 import * as crypto from "crypto";
+import * as fs from "fs";
+import * as path from "path";
 
-const idl = require("../target/idl/conditional_escrow.json");
+const idl = JSON.parse(
+  fs.readFileSync(path.join(process.cwd(), "target/idl/conditional_escrow.json"), "utf8")
+);
 
 const CONDITIONAL = Buffer.from("conditional");
 const VAULT = Buffer.from("vault");
