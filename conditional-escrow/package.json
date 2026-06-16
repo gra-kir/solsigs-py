@@ -6,12 +6,14 @@
   "scripts": {
     "build:tests": "tsc -p tsconfig.build.json",
     "test": "tsc -p tsconfig.build.json && mocha dist/tests/**/*.js -t 1000000",
+    "harness": "tsc -p tsconfig.build.json && node dist/harness/reference_harness.js",
     "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
     "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.31.1",
-    "@solana/spl-token": "^0.4.9"
+    "@solana/spl-token": "^0.4.9",
+    "ajv": "^8.12.0"
   },
   "devDependencies": {
     "@types/bn.js": "^5.1.0",

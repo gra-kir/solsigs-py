@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "SolSigs OpenAPI delivery predicate",
+  "description": "Minimal contract a successful GET /openapi.json response must satisfy to count as DELIVERED.",
+  "type": "object",
+  "required": ["openapi", "info", "paths"],
+  "properties": {
+    "openapi": { "type": "string", "pattern": "^3\\." },
+    "info": {
+      "type": "object",
+      "required": ["title", "version"],
+      "properties": {
+        "title": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 }
+      }
+    },
+    "paths": { "type": "object", "minProperties": 1 }
+  }
+}

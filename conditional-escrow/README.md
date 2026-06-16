@@ -86,6 +86,61 @@ All 11 security rules pass against devnet:
 | 10 | wrong mint / amount mismatch on deposit rejected | PASS |
 | 11 | no funds to authority / fee-payer / third party | PASS |
 
+## Stage 2 — predicate evaluator + reference harness (devnet, verified)
+
+The off-chain half of the scheme lives in `harness/`:
+
+- **`evaluator.ts`** — the release authority's decision function. Given an HTTP
+  response and a predicate descriptor `{type:"json-schema", schemaUrl, schemaHash}`,
+  it fetches the schema, verifies its bytes hash to `schemaHash` (rejecting on
+  mismatch), returns `DELIVERED` iff the status is 2xx **and** the JSON body
+  validates against the schema (AJV), `FAILED` otherwise (non-2xx, empty/invalid
+  body, schema mismatch, timeout), and always computes `sha256(body)` as the
+  `response_hash` recorded on chain.
+- **`reference_harness.ts`** — runs the full flow end-to-end against the deployed
+  devnet program with the live SolSigs API as the worked example.
+
+```bash
+ANCHOR_PROVIDER_URL=https://api.devnet.solana.com \
+ANCHOR_WALLET=~/.config/solana/id.json \
+yarn harness
+```
+
+Both outcomes confirmed on devnet (each settlement tx fetched back with `err=null`):
+
+| Path | Delivery | Endpoint | Evaluator | Settlement |
+|------|----------|----------|-----------|------------|
+| Release | good | `GET /openapi.json` → 200, schema-valid | `DELIVERED` | [`release`](https://explorer.solana.com/tx/4G5grzjYL36w53qHNUJndVwpvwp58DJ8n1uVfe3cPg5BPjHDukY6FLtt6nwLeJa23apm25d5vy9bJQW49SzqPxm1?cluster=devnet) → funds at `pay_to` |
+| Refund | bad | `POST /dex` unpaid → typed 402 | `FAILED` | [`refund`](https://explorer.solana.com/tx/2fukNBNrubF2HiS9NanZvL4L5uK1H6vgqRTmv59mGYq7mYqHfK7G5n45ViTEcKMvSDffcwRn92m25XhcAMsXh4b8?cluster=devnet) → funds back to `payer` |
+
+The escrowed asset is a **devnet test mint** (never mainnet USDC); SolSigs data
+endpoints require x402 USDC payment on mainnet, so the live calls here use only
+the payment-free `GET /openapi.json` (200) and an unpaid `POST /dex` (402).
+
+### Trust boundary (important)
+
+Predicate evaluation is **off chain**. The program does **not** fetch URLs,
+validate schemas, or inspect `response_hash` — it only *records* `response_hash`
+in the `Released`/`Refunded` events and *stores* `predicate_hash` at init for
+auditability. The program trusts whoever holds `release_authority` to have run
+the evaluator honestly before calling `release`/`refund`. The on-chain
+`predicate_hash = sha256({type, schemaUrl, schemaHash})` commits an escrow to a
+specific predicate so an auditor can check which predicate the authority was
+supposed to evaluate, but it is not enforced in-program. Security against the
+authority itself comes from the destination/expiry constraints proved in Stage 1
+(authority can only ever move funds to `ATA(pay_to)` or `ATA(payer)`, and after
+expiry anyone can refund the payer).
+
+### `payment_id` re-use nuance
+
+The escrow PDA seeds include `payment_id`, so `initialize_and_deposit` with an
+already-used `payment_id` is rejected **while that escrow is open** (Stage 1
+rule 9 — the PDA address is in use). Once an escrow settles, `release`/`refund`
+**closes** the PDA, which frees the address: the same `(payer, pay_to, mint,
+payment_id)` tuple can then be initialized again. `payment_id` is therefore a
+uniqueness key for *live* escrows, not a permanent nonce — callers that need
+global single-use semantics must pick fresh `payment_id`s.
+
 ## Keys & secrets
 
 Keypairs are local and gitignored (`*.keypair.json`, `target/deploy/*`,
