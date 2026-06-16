@@ -16,4 +16,4 @@ cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
-test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+test = "npx tsc -p tsconfig.build.json && npx mocha dist/tests/**/*.js -t 1000000"
