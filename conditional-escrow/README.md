@@ -14,9 +14,18 @@ actually deliver?"* and is **complementary** to value-oriented schemes like
 which answer *"how much should be paid?"*. The two compose: `upto` decides the
 amount, `conditional` decides whether delivery happened at all.
 
-> ⚠️ **AUDIT-PENDING — reference design, not production-grade.** This program and
-> harness are a tested reference implementation for discussion. They have **not**
-> been audited. Do not custody material value with them.
+> ⚠️ **Reference design, not production-grade.** This program and harness are a
+> tested reference implementation for discussion. Do not custody material value
+> with them.
+
+> 🔧 **Audit findings applied (F1/F3/F4/F5 in code; F2/F6 in docs).** See
+> [Post-audit fixes](#post-audit-fixes). **Important:** the verified devnet
+> deployment and harness receipts further below were produced by the **original,
+> pre-fix** program. The fixed program in this commit has **not yet been
+> redeployed or re-verified on devnet** — it builds cleanly (`cargo build-sbf`),
+> but a fresh deploy (new program id; there is no upgrade authority for the
+> original id) plus a re-run of the expanded suite is required before those
+> receipts reflect current behavior.
 
 > **Scope.** Standalone program; does not touch any SolSigs production service
 > (only outbound HTTPS calls to `solsigs.com`). Verified on **devnet**; a gated
@@ -27,16 +36,33 @@ amount, `conditional` decides whether delivery happened at all.
 
 Funds in an escrow vault can reach exactly two destinations and no others:
 
-| Instruction | Who may sign | When | Destination |
-|---|---|---|---|
-| `release` | `release_authority` only | `now < expiry_unix` | `ATA(pay_to, mint)` |
-| `refund` | `release_authority` | `now < expiry_unix` | `ATA(payer, mint)` |
-| `refund` | **anyone** (permissionless) | `now >= expiry_unix` | `ATA(payer, mint)` |
+| Instruction | Who may sign | When | Destination | Amount |
+|---|---|---|---|---|
+| `release` | `release_authority` only | `now < expiry_unix` | `ATA(pay_to, mint)` | exactly `amount` (surplus → payer) |
+| `refund` | `release_authority` | `now < expiry_unix` | `ATA(payer, mint)` | `amount` + any surplus |
+| `refund` | **anyone** (permissionless) | `now >= expiry_unix` | `ATA(payer, mint)` | `amount` + any surplus |
 
 There is **no instruction path** that routes funds to the release authority, the
 fee payer, or any third party. The destination is pinned by Anchor
 `associated_token` constraints, recipients/payer/mint are pinned by `has_one`,
-and the signer is pinned by `address` / explicit checks.
+and the signer is pinned by `address` / explicit checks. Settlement moves
+**exactly the committed `amount`** to the outcome party; tokens donated into the
+vault beyond `amount` are returned to the **payer**, never to `pay_to` (F1).
+
+## Post-audit fixes
+
+| Fix | Behavior |
+|-----|----------|
+| **F1 — exact-amount + surplus** | `release`/`refund` settle exactly `escrow.amount` to the outcome party; vault donations beyond `amount` are returned to the **payer** (never `pay_to`), and the vault is drained before close so a donation cannot brick settlement. |
+| **F3 — legacy SPL only** | The `mint` must be owned by the legacy SPL Token program; **Token-2022 mints are rejected** (`IllegalTokenProgram`), since fee/hook extensions would break the exact-amount invariant. |
+| **F4 — no rent griefing** | Destination ATAs (`ATA(pay_to)`, `ATA(payer)`) **must already exist** (no `init_if_needed`); the settler/refunder is never charged unrecoverable ATA rent. Missing `ATA(pay_to)` → release fails. |
+| **F5 — minimum TTL** | `expiry_unix` must be `>= now + 60s` (`MIN_TTL_SECS`). Past/too-soon expiries rejected. |
+| **F6 — payment_id guidance** | `payment_id` is unique-per-**open**-escrow only; use a fresh random 32-byte id per payment for global single-use (the harness does). |
+| **F2 — trust model (docs only)** | Predicate is off-chain; `response_hash` is authority-asserted and **not verified on chain**. A dishonest authority can mis-settle between payer and pay_to but cannot steal. On-chain hardening is an open question, intentionally not built. |
+
+**Liveness caveats.** Real USDC has a freeze authority: a frozen `pay_to`/`payer`
+ATA makes `release`/`refund` revert until thawed. `Clock::unix_timestamp` is
+validator-influenced (accurate to a few seconds), so do not rely on tight expiries.
 
 ### Accounts
 
@@ -79,7 +105,14 @@ yarn test
 
 The suite proves the 11 spec MUST-rules; see `tests/conditional_escrow.ts`.
 
-## Devnet deployment (Stage 1, verified)
+## Devnet deployment (Stage 1, verified — ORIGINAL pre-fix program)
+
+> The deployment and matrix below are for the **original, pre-audit-fix**
+> program. They remain accurate for that build but do **not** cover the F1/F3/F4/F5
+> behavior or the added tests (F1a/F1b/F3/F4/F5 + invariant/regression cases),
+> which require a fresh deploy + re-run to verify. That re-verification is
+> **pending** (devnet faucet exhausted at the time of this change; no upgrade
+> authority exists for the original program id, so a fresh id would be minted).
 
 - **Program id:** `9TwHxtc4HxSEkfosCbcjfkgAWEkF9MdGZsXU6Kzorgys`
 - **Deploy tx:** [`4kvs5gxu…XemGB`](https://explorer.solana.com/tx/4kvs5gxu8ezEebs4756jk6cGCi6fNyoUQmba3csPVEkHHuo9SKq4UTUPbMiCYDEzmJ2jFJbzFUSB4etDtGdXemGB?cluster=devnet)
@@ -101,7 +134,12 @@ All 11 security rules pass against devnet:
 | 10 | wrong mint / amount mismatch on deposit rejected | PASS |
 | 11 | no funds to authority / fee-payer / third party | PASS |
 
-## Stage 2 — predicate evaluator + reference harness (devnet, verified)
+## Stage 2 — predicate evaluator + reference harness (devnet, verified — ORIGINAL pre-fix program)
+
+> The two receipts below were produced by the **original pre-fix** program;
+> re-running the (updated) harness against a freshly deployed fixed program is
+> pending the same blockers noted above.
+
 
 The off-chain half of the scheme lives in `harness/`:
 

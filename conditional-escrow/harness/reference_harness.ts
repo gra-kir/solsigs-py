@@ -159,7 +159,8 @@ async function main() {
   console.log("=== RELEASE PATH: good delivery (GET /openapi.json) ===");
   {
     const payTo = Keypair.generate().publicKey;
-    const payToAta = getAssociatedTokenAddressSync(mint, payTo);
+    // F4: destination ATA must pre-exist — the program no longer creates it.
+    const payToAta = (await getOrCreateAssociatedTokenAccount(connection, master, mint, payTo)).address;
     const dep = await deposit(payTo, master.publicKey, 3600);
     console.log(`  deposit tx: ${dep.sig}`);
     await confirmExternally("deposit", dep.sig);
@@ -180,6 +181,7 @@ async function main() {
         payTo,
         mint,
         payToAta,
+        payerAta: masterAta, // F1: surplus destination (payer == master here)
         payer: master.publicKey,
         tokenProgram: TOKEN_PROGRAM_ID,
         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,

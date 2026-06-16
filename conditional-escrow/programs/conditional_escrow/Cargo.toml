@@ -18,5 +18,7 @@ no-log-ix-name = []
 idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
 
 [dependencies]
-anchor-lang = { version = "0.31.1", features = ["init-if-needed"] }
+# F4: `init-if-needed` deliberately NOT enabled — destination ATAs must pre-exist
+# so the settler/refunder is never charged unrecoverable rent.
+anchor-lang = "0.31.1"
 anchor-spl = "0.31.1"
