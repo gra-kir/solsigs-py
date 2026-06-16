@@ -47,22 +47,44 @@ Toolchain used: Anchor `0.31.1`, Solana (Agave) `4.0.2`, Rust `1.94.1`.
 
 ```bash
 # from this directory
-anchor build
-solana-keygen new -o target/deploy/conditional_escrow-keypair.json   # if absent
-anchor keys sync                  # write the program id into the source + Anchor.toml
-anchor build                      # rebuild with the real program id
-
+anchor build                      # builds the SBF program + IDL
 solana config set --url devnet
-solana airdrop 2                  # fund the provider wallet
-anchor deploy --provider.cluster devnet
 
-# run the security suite against devnet (no local validator)
+# deploy (use --use-rpc when the TPU/QUIC path is blocked by a proxy)
+solana program deploy target/deploy/conditional_escrow.so \
+  --program-id target/deploy/conditional_escrow-keypair.json --use-rpc
+
+# run the security suite against devnet (no local validator).
+# Tests are compiled to CommonJS then run with mocha to avoid the
+# mocha-ESM / ts-node loader mismatch on modern Node.
 ANCHOR_PROVIDER_URL=https://api.devnet.solana.com \
 ANCHOR_WALLET=~/.config/solana/id.json \
-yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts
+yarn test
 ```
 
 The suite proves the 11 spec MUST-rules; see `tests/conditional_escrow.ts`.
+
+## Devnet deployment (Stage 1, verified)
+
+- **Program id:** `9TwHxtc4HxSEkfosCbcjfkgAWEkF9MdGZsXU6Kzorgys`
+- **Deploy tx:** [`4kvs5gxu…XemGB`](https://explorer.solana.com/tx/4kvs5gxu8ezEebs4756jk6cGCi6fNyoUQmba3csPVEkHHuo9SKq4UTUPbMiCYDEzmJ2jFJbzFUSB4etDtGdXemGB?cluster=devnet)
+- **Program:** [explorer.solana.com/address/9TwHxtc4…?cluster=devnet](https://explorer.solana.com/address/9TwHxtc4HxSEkfosCbcjfkgAWEkF9MdGZsXU6Kzorgys?cluster=devnet)
+
+All 11 security rules pass against devnet:
+
+| # | Rule | Result |
+|---|------|--------|
+| 1 | release before expiry → `pay_to`; accounts closed | PASS |
+| 2 | refund after expiry is permissionless → `payer` | PASS |
+| 3 | release after expiry rejected | PASS |
+| 4 | release by non-`release_authority` rejected | PASS |
+| 5 | refund before expiry by non-authority rejected | PASS |
+| 6 | release to dest ≠ `ATA(pay_to, mint)` rejected | PASS |
+| 7 | refund to dest ≠ `ATA(payer, mint)` rejected | PASS |
+| 8 | double-settle rejected (account closed) | PASS |
+| 9 | re-init with used `payment_id` rejected | PASS |
+| 10 | wrong mint / amount mismatch on deposit rejected | PASS |
+| 11 | no funds to authority / fee-payer / third party | PASS |
 
 ## Keys & secrets
 
