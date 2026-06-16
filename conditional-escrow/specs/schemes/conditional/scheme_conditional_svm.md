@@ -2,7 +2,7 @@
 
 - **Scheme:** `conditional`
 - **Chain family:** SVM (Solana and SVM-compatible)
-- **Status:** Draft / reference implementation (AUDIT-PENDING)
+- **Status:** Draft / reference implementation (audit findings applied)
 - **Reference program (devnet):** `9TwHxtc4HxSEkfosCbcjfkgAWEkF9MdGZsXU6Kzorgys`
 
 ## Summary
@@ -38,8 +38,8 @@ All fields are written once and never mutated.
 | Field | Type | Notes |
 |-------|------|-------|
 | `payment_id` | `[u8;32]` | Caller-chosen uniqueness key (see *payment_id semantics*). |
-| `amount` | `u64` | Token base units to escrow. Must be `> 0`. |
-| `expiry_unix` | `i64` | Unix seconds; must be `> now` at init. |
+| `amount` | `u64` | Token base units to escrow. Must be `> 0`. This is the **committed amount** that settles to the outcome party. |
+| `expiry_unix` | `i64` | Unix seconds; must be `>= now + MIN_TTL_SECS` (60s) at init. |
 | `pay_to` | `Pubkey` | Release recipient (ATA authority). |
 | `predicate_hash` | `[u8;32]` | Commitment to the off-chain predicate descriptor. |
 | `release_authority` | `Pubkey` | Who may release / early-refund. |
@@ -79,42 +79,70 @@ Three instructions; `release` and `refund` are mutually exclusive and each
 closes the escrow + vault (rent → `payer`), so an escrow settles exactly once.
 
 ### `initialize_and_deposit`
-- Requires `amount > 0` and `expiry_unix > now`.
+- Requires `amount > 0`.
+- **Minimum TTL (F5):** requires `expiry_unix >= now + MIN_TTL_SECS` (60s).
+  Rejects past *and* too-soon expiries. The on-chain clock is validator-
+  influenced and only accurate to a few seconds, so second-level precision near
+  expiry is **not** guaranteed; do not rely on tight expiries.
+- **Legacy SPL only (F3):** the `mint` must be owned by the legacy SPL Token
+  program; Token-2022 mints are rejected (`IllegalTokenProgram`), since their
+  transfer-fee / transfer-hook extensions would break the exact-amount and
+  "funds only reach pay_to/payer" invariants.
 - Creates the escrow PDA and the vault; transfers `amount` of `mint` from
   `ATA(payer)` into the vault.
 
 ### `release(response_hash: [u8;32])`
 - Signer **must** be `release_authority` (`address = escrow.release_authority`).
 - Requires `now < expiry_unix`.
-- Transfers the **entire** vault balance to `ATA(pay_to, mint)` and nowhere else
-  (destination is the Associated Token Account constrained by
-  `associated_token::authority = pay_to`, `mint = escrow.mint`).
-- Closes vault + escrow; emits `Released { response_hash, ... }`.
+- **Exact-amount (F1):** transfers **exactly `escrow.amount`** to
+  `ATA(pay_to, mint)` (constrained by `associated_token::authority = pay_to`,
+  `mint = escrow.mint`). Any tokens donated into the vault beyond `amount` are
+  returned to `ATA(payer, mint)` — never to `pay_to`. The vault is then drained
+  to zero and closed, so a donation can never brick settlement.
+- **Destinations must pre-exist (F4):** `ATA(pay_to)` and `ATA(payer)` are not
+  created by the program, so the release authority is never charged unrecoverable
+  rent; a missing `ATA(pay_to)` causes release to fail.
+- Closes vault + escrow; emits `Released { amount, surplus_to_payer, response_hash, ... }`.
 
 ### `refund(response_hash: Option<[u8;32]>)`
 - If `now >= expiry_unix`: **permissionless** (any signer).
 - If `now < expiry_unix`: signer **must** be `release_authority`.
-- Transfers the **entire** vault balance to `ATA(payer, mint)` and nowhere else.
-- Closes vault + escrow; emits `Refunded { response_hash, expired, ... }`.
+- The outcome party is the payer, so the committed amount **and** any donated
+  surplus both settle to `ATA(payer, mint)`. `ATA(payer)` must already exist (F4).
+- Closes vault + escrow; emits `Refunded { amount, surplus_to_payer, expired, response_hash, ... }`.
 
 ### Settlement invariants (proven in the reference test suite)
-1. Funds can only ever reach `ATA(pay_to, mint)` (release) or `ATA(payer, mint)`
-   (refund). No instruction can route them to `release_authority`, the fee
+1. Tokens can only ever reach `ATA(pay_to, mint)` (exactly `amount`, on release)
+   or `ATA(payer, mint)` (the committed amount on refund, plus any surplus on
+   either path). No instruction can route them to `release_authority`, the fee
    payer, or any third party.
 2. `release` after expiry is rejected; `release` by a non-authority is rejected.
 3. `refund` before expiry by a non-authority is rejected; after expiry it is
    permissionless.
-4. Double-settle is impossible (the escrow/vault are closed on first settle).
-5. A wrong `mint`, zero/oversized `amount`, or past `expiry_unix` is rejected.
+4. Double-settle is impossible (the escrow/vault are closed on first settle); a
+   closed account cannot be revived.
+5. A wrong `mint`, a Token-2022 `mint`, zero `amount`, or an `expiry_unix` that is
+   past or under `MIN_TTL_SECS` is rejected.
 
 ## Trust model
 
 - **Non-custodial:** funds sit in a PDA-owned vault; no human key can move them
   except along the two constrained paths above.
-- **Off-chain predicate:** the program trusts `release_authority` to evaluate the
-  predicate honestly. It records `response_hash` and stores `predicate_hash` so a
-  third party can audit *what* was supposed to be evaluated, but it does not
-  enforce the predicate in-program.
+- **Off-chain predicate (F2 — unchanged by design):** the program trusts
+  `release_authority` to evaluate the predicate honestly. `response_hash` is
+  **authority-asserted and recorded, not verified on chain**; `predicate_hash` is
+  stored so a third party can audit *what* was supposed to be evaluated. The
+  program does **not** enforce the predicate in-program. A compromised or
+  dishonest authority can therefore mis-settle *between the two honest parties* —
+  release on a failed delivery (harming the buyer) or withhold / early-refund
+  (harming the seller) — but can **never** redirect or steal funds. How much of
+  this to anchor on chain (oracle attestation, dispute/challenge window,
+  threshold/multisig authority) is an **open question for maintainers**; no
+  hardening is built yet.
+- **Freeze-authority liveness:** real USDC has a freeze authority. If the
+  `pay_to` or `payer` ATA is frozen, `release`/`refund` will revert until the
+  account is thawed. This is a property of the asset, not a program bug, but it
+  is a liveness consideration for any USDC deployment.
 - **Bounded authority power:** even a malicious `release_authority` can only send
   funds to `pay_to` (release) or `payer` (refund); it can never redirect or steal
   them. After `expiry_unix`, anyone can refund the payer, so a withholding
@@ -127,8 +155,14 @@ already-used `payment_id` is rejected **while that escrow is open** (the PDA
 address is occupied). Settlement closes the PDA and frees the address, after
 which the same `(payer, pay_to, mint, payment_id)` tuple can be initialized
 again. `payment_id` is therefore a **liveness/uniqueness key for open escrows,
-not a permanent nonce**; callers needing global single-use semantics must choose
-fresh `payment_id`s.
+not a permanent nonce**; callers needing global single-use semantics **must**
+choose fresh (random) `payment_id`s. The reference harness generates a random
+32-byte `payment_id` per deposit to demonstrate the safe pattern (F6).
+
+> Optional on-chain route: if a future consumer needs hard global single-use, a
+> permanent "spent-marker" PDA (a small account that is *not* closed on settle)
+> can be added. This is intentionally **not** implemented here because it burns
+> rent per escrow.
 
 ## Open questions for maintainers
 

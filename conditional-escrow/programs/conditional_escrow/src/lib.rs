@@ -3,15 +3,30 @@
 //! Non-custodial escrow implementing the `conditional` payment scheme: a payer
 //! locks tokens that a designated `release_authority` may release to a fixed
 //! recipient (`pay_to`) before an expiry, or that are refunded to the payer.
-//! Funds can only ever reach `ATA(pay_to, mint)` (release) or
-//! `ATA(payer, mint)` (refund); no instruction can route them to the release
-//! authority, the fee payer, or any third party.
+//!
+//! Settlement is **exact-amount**: precisely `escrow.amount` reaches the outcome
+//! party (release -> `ATA(pay_to, mint)`, refund -> `ATA(payer, mint)`), and any
+//! tokens donated into the vault beyond `amount` are returned to the payer before
+//! the vault is closed. Funds can therefore only ever reach `ATA(pay_to, mint)`
+//! (the committed amount, on release) or `ATA(payer, mint)` (the committed amount
+//! on refund, plus any surplus on either path); no instruction can route them to
+//! the release authority, the fee payer, or any third party.
+//!
+//! Legacy SPL Token only (see `EscrowError::IllegalTokenProgram`): Token-2022 and
+//! its transfer-fee / transfer-hook extensions are rejected so the full-balance
+//! and exact-amount assumptions cannot be subverted.
 
 use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{self, CloseAccount, Mint, Token, TokenAccount, Transfer};
 
 declare_id!("9TwHxtc4HxSEkfosCbcjfkgAWEkF9MdGZsXU6Kzorgys");
+
+/// Minimum escrow lifetime at creation (F5). `expiry_unix` must be at least this
+/// many seconds in the future. The on-chain clock (`Clock::unix_timestamp`) is
+/// validator-influenced and only accurate to a handful of seconds, so escrows are
+/// not allowed to be created with sub-minute or already-past expiries.
+pub const MIN_TTL_SECS: i64 = 60;
 
 #[program]
 pub mod conditional_escrow {
@@ -30,8 +45,23 @@ pub mod conditional_escrow {
     ) -> Result<()> {
         require!(amount > 0, EscrowError::ZeroAmount);
 
+        // F5: enforce a minimum time-to-live. Rejects past *and* too-soon expiries.
         let now = Clock::get()?.unix_timestamp;
-        require!(expiry_unix > now, EscrowError::ExpiryInPast);
+        let min_expiry = now
+            .checked_add(MIN_TTL_SECS)
+            .ok_or(EscrowError::ExpiryTooSoon)?;
+        require!(expiry_unix >= min_expiry, EscrowError::ExpiryTooSoon);
+
+        // F3: legacy SPL Token only. `anchor_spl::token::{Mint, TokenAccount, Token}`
+        // already reject Token-2022 (the mint would be owned by the Token-2022
+        // program and fail to deserialize), but assert it explicitly so a future
+        // migration to `token_interface` cannot silently admit transfer-fee or
+        // transfer-hook mints that would break the exact-amount invariant.
+        require_keys_eq!(
+            *ctx.accounts.mint.to_account_info().owner,
+            token::ID,
+            EscrowError::IllegalTokenProgram
+        );
 
         // `pay_to` is part of the PDA seeds; bind the arg to the seed value.
         require_keys_eq!(pay_to, ctx.accounts.pay_to.key(), EscrowError::PayToMismatch);
@@ -72,21 +102,22 @@ pub mod conditional_escrow {
         Ok(())
     }
 
-    /// Release the full vault balance to `ATA(pay_to, mint)`.
+    /// Release exactly `escrow.amount` to `ATA(pay_to, mint)`.
     /// Requires the `release_authority` signature and `now < expiry_unix`.
-    /// Closes the vault and escrow, returning rent to the payer.
+    /// Any surplus tokens donated into the vault are returned to the payer's ATA,
+    /// then the vault and escrow are closed (rent -> payer).
     pub fn release(ctx: Context<Release>, response_hash: [u8; 32]) -> Result<()> {
         let now = Clock::get()?.unix_timestamp;
         require!(now < ctx.accounts.escrow.expiry_unix, EscrowError::Expired);
 
-        let amount = ctx.accounts.vault.amount;
         let escrow_key = ctx.accounts.escrow.key();
         let bump = ctx.accounts.escrow.bump;
-        let (payer, pay_to, mint, payment_id) = (
+        let (payer, pay_to, mint, payment_id, committed) = (
             ctx.accounts.escrow.payer,
             ctx.accounts.escrow.pay_to,
             ctx.accounts.escrow.mint,
             ctx.accounts.escrow.payment_id,
+            ctx.accounts.escrow.amount,
         );
         let signer_seeds: &[&[&[u8]]] = &[&[
             b"conditional",
@@ -96,6 +127,14 @@ pub mod conditional_escrow {
             payment_id.as_ref(),
             &[bump],
         ]];
+
+        // F1: settle the *committed* amount, not the live vault balance. Exactly
+        // `escrow.amount` reaches pay_to. `min` guards against the (impossible on
+        // legacy SPL, but defensive) case of a vault holding less than `amount` so
+        // settlement can never be bricked.
+        let vault_bal = ctx.accounts.vault.amount;
+        let to_pay_to = committed.min(vault_bal);
+        let surplus = vault_bal - to_pay_to;
 
         token::transfer(
             CpiContext::new_with_signer(
@@ -107,8 +146,25 @@ pub mod conditional_escrow {
                 },
                 signer_seeds,
             ),
-            amount,
+            to_pay_to,
         )?;
+
+        // F1: any donated surplus goes back to the PAYER, never to pay_to. This
+        // also drains the vault to zero so `close_account` below cannot fail.
+        if surplus > 0 {
+            token::transfer(
+                CpiContext::new_with_signer(
+                    ctx.accounts.token_program.to_account_info(),
+                    Transfer {
+                        from: ctx.accounts.vault.to_account_info(),
+                        to: ctx.accounts.payer_ata.to_account_info(),
+                        authority: ctx.accounts.escrow.to_account_info(),
+                    },
+                    signer_seeds,
+                ),
+                surplus,
+            )?;
+        }
 
         token::close_account(CpiContext::new_with_signer(
             ctx.accounts.token_program.to_account_info(),
@@ -123,16 +179,18 @@ pub mod conditional_escrow {
         emit!(Released {
             escrow: escrow_key,
             pay_to,
-            amount,
+            amount: to_pay_to,
+            surplus_to_payer: surplus,
             response_hash,
         });
         Ok(())
     }
 
-    /// Refund the full vault balance to `ATA(payer, mint)`.
+    /// Refund the vault to `ATA(payer, mint)`.
     /// Permissionless once `now >= expiry_unix`; before expiry the
-    /// `release_authority` signature is required. Closes vault + escrow,
-    /// returning rent to the payer.
+    /// `release_authority` signature is required. The outcome party is the payer,
+    /// so the committed amount *and* any donated surplus both go to the payer.
+    /// Closes vault + escrow, returning rent to the payer.
     pub fn refund(ctx: Context<Refund>, response_hash: Option<[u8; 32]>) -> Result<()> {
         let now = Clock::get()?.unix_timestamp;
         let expired = now >= ctx.accounts.escrow.expiry_unix;
@@ -144,14 +202,14 @@ pub mod conditional_escrow {
             );
         }
 
-        let amount = ctx.accounts.vault.amount;
         let escrow_key = ctx.accounts.escrow.key();
         let bump = ctx.accounts.escrow.bump;
-        let (payer, pay_to, mint, payment_id) = (
+        let (payer, pay_to, mint, payment_id, committed) = (
             ctx.accounts.escrow.payer,
             ctx.accounts.escrow.pay_to,
             ctx.accounts.escrow.mint,
             ctx.accounts.escrow.payment_id,
+            ctx.accounts.escrow.amount,
         );
         let signer_seeds: &[&[&[u8]]] = &[&[
             b"conditional",
@@ -161,6 +219,13 @@ pub mod conditional_escrow {
             payment_id.as_ref(),
             &[bump],
         ]];
+
+        // F1: the outcome party is the payer, so committed amount + any surplus all
+        // settle to ATA(payer). Transferring the full vault balance to the single
+        // payer destination is exactly that, and drains the vault for close.
+        let vault_bal = ctx.accounts.vault.amount;
+        let settled = committed.min(vault_bal);
+        let surplus = vault_bal - settled;
 
         token::transfer(
             CpiContext::new_with_signer(
@@ -172,7 +237,7 @@ pub mod conditional_escrow {
                 },
                 signer_seeds,
             ),
-            amount,
+            vault_bal,
         )?;
 
         token::close_account(CpiContext::new_with_signer(
@@ -188,7 +253,8 @@ pub mod conditional_escrow {
         emit!(Refunded {
             escrow: escrow_key,
             payer,
-            amount,
+            amount: settled,
+            surplus_to_payer: surplus,
             expired,
             response_hash,
         });
@@ -285,14 +351,25 @@ pub struct Release<'info> {
 
     pub mint: Account<'info, Mint>,
 
-    /// The only legal destination: the canonical ATA of (pay_to, mint).
+    /// The only legal release destination: the canonical ATA of (pay_to, mint).
+    /// F4: must already exist (no `init_if_needed`) so the release authority is
+    /// never silently charged unrecoverable rent. If pay_to has no ATA, release
+    /// fails with `AccountNotInitialized`.
     #[account(
-        init_if_needed,
-        payer = release_authority,
+        mut,
         associated_token::mint = mint,
         associated_token::authority = pay_to,
     )]
     pub pay_to_ata: Account<'info, TokenAccount>,
+
+    /// F1: destination for any donated surplus — the canonical ATA of (payer, mint).
+    /// Must already exist (it funded the deposit). Surplus is never routed to pay_to.
+    #[account(
+        mut,
+        associated_token::mint = mint,
+        associated_token::authority = payer,
+    )]
+    pub payer_ata: Account<'info, TokenAccount>,
 
     /// CHECK: bound to escrow.payer via has_one; rent recipient on close.
     #[account(mut)]
@@ -337,9 +414,11 @@ pub struct Refund<'info> {
     pub mint: Account<'info, Mint>,
 
     /// The only legal destination: the canonical ATA of (payer, mint).
+    /// F4: must already exist (no `init_if_needed`) so a permissionless refunder is
+    /// never charged unrecoverable rent. The payer's ATA necessarily exists — it
+    /// funded the deposit.
     #[account(
-        init_if_needed,
-        payer = signer,
+        mut,
         associated_token::mint = mint,
         associated_token::authority = payer,
     )]
@@ -385,6 +464,7 @@ pub struct Released {
     pub escrow: Pubkey,
     pub pay_to: Pubkey,
     pub amount: u64,
+    pub surplus_to_payer: u64,
     pub response_hash: [u8; 32],
 }
 
@@ -393,6 +473,7 @@ pub struct Refunded {
     pub escrow: Pubkey,
     pub payer: Pubkey,
     pub amount: u64,
+    pub surplus_to_payer: u64,
     pub expired: bool,
     pub response_hash: Option<[u8; 32]>,
 }
@@ -403,6 +484,8 @@ pub enum EscrowError {
     ZeroAmount,
     #[msg("Expiry must be in the future")]
     ExpiryInPast,
+    #[msg("Expiry must be at least MIN_TTL_SECS in the future")]
+    ExpiryTooSoon,
     #[msg("Signer is not the release authority")]
     Unauthorized,
     #[msg("Escrow has expired")]
@@ -413,4 +496,6 @@ pub enum EscrowError {
     PayToMismatch,
     #[msg("Mint does not match escrow")]
     MintMismatch,
+    #[msg("Mint is not owned by the legacy SPL Token program")]
+    IllegalTokenProgram,
 }
