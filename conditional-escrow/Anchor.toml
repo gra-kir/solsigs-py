@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-conditional_escrow = "9TwHxtc4HxSEkfosCbcjfkgAWEkF9MdGZsXU6Kzorgys"
+conditional_escrow = "Hy8Rh1zdWfXRJLaXtQGFBHUD6wyV7kxAwwGF4J8UsXvw"
 
 [registry]
 url = "https://api.apr.dev"
