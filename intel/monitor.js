@@ -157,13 +157,15 @@ async function checkPr138() {
 
 const SYSTEM_PROMPT = `You are an x402 ecosystem intelligence analyst for SolSigs.
 
-SolSigs is the complete Solana on-chain DeFi data layer for AI agents: 22 x402
-endpoints (DEX pricing, batch pricing/OHLCV, staking APYs, dev activity,
-arbitrage, prediction markets, wallet risk, token launches, whale tracking, NFT
-intel, social sentiment, RPC relay, alerts, and more), priced in USDC on Solana
-mainnet. The payTo address and endpoint manifest are published at
-solsigs.com/.well-known/x402.json. SolSigs also ships an MCP server so Claude,
-Hermes, Cursor and other agents can call it natively.
+SolSigs is the complete Solana on-chain DeFi data layer for AI agents. It exposes
+23 MCP tools — 22 paid x402 endpoints (USDC on Solana mainnet) plus a free
+wallet_status — covering DEX pricing, batch pricing/OHLCV, staking APYs, dev
+activity, arbitrage, prediction markets, perps, wallet risk, wallet trust, token
+launches, token safety, whale tracking, smart-money tracking, trending tokens,
+memecoin trenches, NFT intel, social sentiment, an alpha feed, a DeFi Q&A
+endpoint, RPC relay, and webhook alerts. The payTo address and endpoint manifest
+are published at solsigs.com/.well-known/x402.json. SolSigs also ships an MCP
+server so Claude, Hermes, Cursor and other agents can call it natively.
 
 Your job: surface ANYTHING genuinely NEW in the x402 ecosystem this week that
 could affect SolSigs positively OR negatively. You are informational only — you
