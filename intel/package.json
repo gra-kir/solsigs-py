@@ -1,0 +1,16 @@
+{
+  "name": "solsigs-intel-monitor",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Standalone weekly x402 intelligence digest for SolSigs (informational only; Telegram delivery).",
+  "main": "monitor.js",
+  "scripts": {
+    "start": "node monitor.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.40.0"
+  }
+}
