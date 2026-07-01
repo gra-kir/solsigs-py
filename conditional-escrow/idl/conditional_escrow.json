@@ -1,0 +1,290 @@
+{
+  "address": "Hy8Rh1zdWfXRJLaXtQGFBHUD6wyV7kxAwwGF4J8UsXvw",
+  "metadata": {
+    "name": "conditional_escrow",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Non-custodial conditional-settlement escrow for the `conditional` payment scheme"
+  },
+  "instructions": [
+    {
+      "name": "initialize_and_deposit",
+      "docs": [
+        "Create the escrow PDA + vault and deposit `amount` of `mint`.",
+        "All state fields are written once here and never mutated afterwards."
+      ],
+      "discriminator": [18, 152, 143, 221, 235, 239, 245, 30],
+      "accounts": [
+        { "name": "payer", "writable": true, "signer": true },
+        { "name": "mint" },
+        {
+          "name": "payer_ata",
+          "docs": ["Source of funds. Must hold `mint` and be owned by `payer`."],
+          "writable": true
+        },
+        { "name": "pay_to" },
+        {
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              { "kind": "const", "value": [99, 111, 110, 100, 105, 116, 105, 111, 110, 97, 108] },
+              { "kind": "account", "path": "payer" },
+              { "kind": "arg", "path": "pay_to" },
+              { "kind": "account", "path": "mint" },
+              { "kind": "arg", "path": "payment_id" }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              { "kind": "const", "value": [118, 97, 117, 108, 116] },
+              { "kind": "account", "path": "escrow" }
+            ]
+          }
+        },
+        { "name": "token_program", "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" },
+        { "name": "system_program", "address": "11111111111111111111111111111111" },
+        { "name": "rent", "address": "SysvarRent111111111111111111111111111111111" }
+      ],
+      "args": [
+        { "name": "payment_id", "type": { "array": ["u8", 32] } },
+        { "name": "amount", "type": "u64" },
+        { "name": "expiry_unix", "type": "i64" },
+        { "name": "pay_to", "type": "pubkey" },
+        { "name": "predicate_hash", "type": { "array": ["u8", 32] } },
+        { "name": "release_authority", "type": "pubkey" }
+      ]
+    },
+    {
+      "name": "refund",
+      "docs": [
+        "Refund the vault to `ATA(payer, mint)`.",
+        "Permissionless once `now >= expiry_unix`; before expiry the",
+        "`release_authority` signature is required. Committed amount and any",
+        "donated surplus both go to the payer. Closes vault + escrow, rent -> payer."
+      ],
+      "discriminator": [2, 96, 183, 251, 63, 208, 46, 46],
+      "accounts": [
+        {
+          "name": "signer",
+          "docs": ["Anyone after expiry; before expiry must equal escrow.release_authority."],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              { "kind": "const", "value": [99, 111, 110, 100, 105, 116, 105, 111, 110, 97, 108] },
+              { "kind": "account", "path": "escrow.payer", "account": "Escrow" },
+              { "kind": "account", "path": "escrow.pay_to", "account": "Escrow" },
+              { "kind": "account", "path": "escrow.mint", "account": "Escrow" },
+              { "kind": "account", "path": "escrow.payment_id", "account": "Escrow" }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              { "kind": "const", "value": [118, 97, 117, 108, 116] },
+              { "kind": "account", "path": "escrow" }
+            ]
+          }
+        },
+        { "name": "mint", "relations": ["escrow"] },
+        {
+          "name": "payer_ata",
+          "docs": ["The only legal destination: the canonical ATA of (payer, mint). Must already exist."],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              { "kind": "account", "path": "payer" },
+              { "kind": "const", "value": [6, 221, 246, 225, 215, 101, 161, 147, 217, 203, 225, 70, 206, 235, 121, 172, 28, 180, 133, 237, 95, 91, 55, 145, 58, 140, 245, 133, 126, 255, 0, 169] },
+              { "kind": "account", "path": "mint" }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [140, 151, 37, 143, 78, 36, 137, 241, 187, 61, 16, 41, 20, 142, 13, 131, 11, 90, 19, 153, 218, 255, 16, 132, 4, 142, 123, 216, 219, 233, 248, 89]
+            }
+          }
+        },
+        { "name": "payer", "writable": true, "relations": ["escrow"] },
+        { "name": "token_program", "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" },
+        { "name": "associated_token_program", "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL" },
+        { "name": "system_program", "address": "11111111111111111111111111111111" }
+      ],
+      "args": [
+        { "name": "response_hash", "type": { "option": { "array": ["u8", 32] } } }
+      ]
+    },
+    {
+      "name": "release",
+      "docs": [
+        "Release exactly `escrow.amount` to `ATA(pay_to, mint)`.",
+        "Requires the `release_authority` signature and `now < expiry_unix`.",
+        "Any donated surplus is returned to the payer's ATA. Closes vault + escrow, rent -> payer."
+      ],
+      "discriminator": [253, 249, 15, 206, 28, 127, 193, 241],
+      "accounts": [
+        {
+          "name": "release_authority",
+          "docs": ["Must be the recorded release authority."],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "escrow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              { "kind": "const", "value": [99, 111, 110, 100, 105, 116, 105, 111, 110, 97, 108] },
+              { "kind": "account", "path": "escrow.payer", "account": "Escrow" },
+              { "kind": "account", "path": "escrow.pay_to", "account": "Escrow" },
+              { "kind": "account", "path": "escrow.mint", "account": "Escrow" },
+              { "kind": "account", "path": "escrow.payment_id", "account": "Escrow" }
+            ]
+          }
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              { "kind": "const", "value": [118, 97, 117, 108, 116] },
+              { "kind": "account", "path": "escrow" }
+            ]
+          }
+        },
+        { "name": "pay_to", "relations": ["escrow"] },
+        { "name": "mint", "relations": ["escrow"] },
+        {
+          "name": "pay_to_ata",
+          "docs": ["The only legal release destination: the canonical ATA of (pay_to, mint). Must already exist."],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              { "kind": "account", "path": "pay_to" },
+              { "kind": "const", "value": [6, 221, 246, 225, 215, 101, 161, 147, 217, 203, 225, 70, 206, 235, 121, 172, 28, 180, 133, 237, 95, 91, 55, 145, 58, 140, 245, 133, 126, 255, 0, 169] },
+              { "kind": "account", "path": "mint" }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [140, 151, 37, 143, 78, 36, 137, 241, 187, 61, 16, 41, 20, 142, 13, 131, 11, 90, 19, 153, 218, 255, 16, 132, 4, 142, 123, 216, 219, 233, 248, 89]
+            }
+          }
+        },
+        {
+          "name": "payer_ata",
+          "docs": ["Surplus destination: the canonical ATA of (payer, mint). Must already exist."],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              { "kind": "account", "path": "payer" },
+              { "kind": "const", "value": [6, 221, 246, 225, 215, 101, 161, 147, 217, 203, 225, 70, 206, 235, 121, 172, 28, 180, 133, 237, 95, 91, 55, 145, 58, 140, 245, 133, 126, 255, 0, 169] },
+              { "kind": "account", "path": "mint" }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [140, 151, 37, 143, 78, 36, 137, 241, 187, 61, 16, 41, 20, 142, 13, 131, 11, 90, 19, 153, 218, 255, 16, 132, 4, 142, 123, 216, 219, 233, 248, 89]
+            }
+          }
+        },
+        { "name": "payer", "writable": true, "relations": ["escrow"] },
+        { "name": "token_program", "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA" },
+        { "name": "associated_token_program", "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL" },
+        { "name": "system_program", "address": "11111111111111111111111111111111" }
+      ],
+      "args": [
+        { "name": "response_hash", "type": { "array": ["u8", 32] } }
+      ]
+    }
+  ],
+  "accounts": [
+    { "name": "Escrow", "discriminator": [31, 213, 123, 187, 186, 22, 218, 155] }
+  ],
+  "events": [
+    { "name": "Initialized", "discriminator": [208, 213, 115, 98, 115, 82, 201, 209] },
+    { "name": "Refunded", "discriminator": [35, 103, 149, 246, 196, 123, 221, 99] },
+    { "name": "Released", "discriminator": [232, 229, 255, 136, 101, 189, 15, 220] }
+  ],
+  "errors": [
+    { "code": 6000, "name": "ZeroAmount", "msg": "Deposit amount must be greater than zero" },
+    { "code": 6001, "name": "ExpiryInPast", "msg": "Expiry must be in the future" },
+    { "code": 6002, "name": "ExpiryTooSoon", "msg": "Expiry must be at least MIN_TTL_SECS in the future" },
+    { "code": 6003, "name": "Unauthorized", "msg": "Signer is not the release authority" },
+    { "code": 6004, "name": "Expired", "msg": "Escrow has expired" },
+    { "code": 6005, "name": "PayerMismatch", "msg": "Payer account does not match escrow" },
+    { "code": 6006, "name": "PayToMismatch", "msg": "Pay-to account does not match escrow" },
+    { "code": 6007, "name": "MintMismatch", "msg": "Mint does not match escrow" },
+    { "code": 6008, "name": "IllegalTokenProgram", "msg": "Mint is not owned by the legacy SPL Token program" }
+  ],
+  "types": [
+    {
+      "name": "Escrow",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "payer", "type": "pubkey" },
+          { "name": "pay_to", "type": "pubkey" },
+          { "name": "mint", "type": "pubkey" },
+          { "name": "amount", "type": "u64" },
+          { "name": "expiry_unix", "type": "i64" },
+          { "name": "predicate_hash", "type": { "array": ["u8", 32] } },
+          { "name": "release_authority", "type": "pubkey" },
+          { "name": "payment_id", "type": { "array": ["u8", 32] } },
+          { "name": "bump", "type": "u8" }
+        ]
+      }
+    },
+    {
+      "name": "Initialized",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "escrow", "type": "pubkey" },
+          { "name": "payer", "type": "pubkey" },
+          { "name": "pay_to", "type": "pubkey" },
+          { "name": "mint", "type": "pubkey" },
+          { "name": "amount", "type": "u64" },
+          { "name": "expiry_unix", "type": "i64" },
+          { "name": "predicate_hash", "type": { "array": ["u8", 32] } },
+          { "name": "release_authority", "type": "pubkey" }
+        ]
+      }
+    },
+    {
+      "name": "Refunded",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "escrow", "type": "pubkey" },
+          { "name": "payer", "type": "pubkey" },
+          { "name": "amount", "type": "u64" },
+          { "name": "surplus_to_payer", "type": "u64" },
+          { "name": "expired", "type": "bool" },
+          { "name": "response_hash", "type": { "option": { "array": ["u8", 32] } } }
+        ]
+      }
+    },
+    {
+      "name": "Released",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "escrow", "type": "pubkey" },
+          { "name": "pay_to", "type": "pubkey" },
+          { "name": "amount", "type": "u64" },
+          { "name": "surplus_to_payer", "type": "u64" },
+          { "name": "response_hash", "type": { "array": ["u8", 32] } }
+        ]
+      }
+    }
+  ]
+}
