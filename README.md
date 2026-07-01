@@ -167,6 +167,27 @@ See [`examples/langgraph_agent.py`](examples/langgraph_agent.py) for a full mult
 | `/rpc` | RPC load balancer | $0.001 |
 | `/alerts` | Webhook alert registration | $0.005 |
 
+## SolSigs ProofGuard
+
+ProofGuard is a signed receipt and refund-evidence layer for x402-paid agent endpoints on Solana.
+
+It returns:
+- endpoint trust score;
+- payment expectation receipt;
+- payment fulfillment receipt;
+- refund evidence package.
+
+Live endpoint:
+
+```text
+POST https://solsigs.com/proofguard/evaluate
+Price: 0.003 USDC via x402 on Solana mainnet
+```
+
+ProofGuard explicitly labels evidence mode as `solsigs_instrumented`, `proofguard_probed`, or `self_attested`, so agents can distinguish real observed proof from caller-supplied claims.
+
+See [docs/proofguard.md](docs/proofguard.md).
+
 ## Why x402?
 
 - **No API keys** — payment is the only gate
