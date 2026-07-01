@@ -1,0 +1,23 @@
+# Anchor / Solana build artifacts
+.anchor
+target
+dist
+**/*.rs.bk
+
+# Node
+node_modules
+yarn-error.log
+package-lock.json
+
+# Local keypairs / secrets — NEVER commit
+*.keypair.json
+deploy-keypair.json
+.devnet-keys/
+.env
+.env.*
+!.env.example
+
+# Test ledger
+test-ledger
+.mainnet-keys/
+mainnet-*.json
