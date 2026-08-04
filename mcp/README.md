@@ -129,6 +129,15 @@ Client config:
 | `MCP_HOST` | No | `127.0.0.1` | SSE bind address |
 | `MCP_PORT` | No | `3001` | SSE port |
 
+### Wallet security
+
+`SOLSIGS_MCP_KEY` is a live Solana private key held in process memory and used to sign transactions directly — treat the wallet it belongs to as a **dedicated, low-balance spending wallet**, not a savings wallet:
+
+- Fund it with only what you expect to spend on API calls in the near term (each call costs fractions of a cent to a few cents of USDC).
+- Never reuse a wallet that also holds other tokens, NFTs, or long-term balances.
+- Rotate the key (generate a new wallet, transfer the balance, update `SOLSIGS_MCP_KEY`) if it may have been exposed — e.g. committed to git, pasted into a shared chat, or logged by a misconfigured client.
+- Keep the key in `.env` (already gitignored) or your MCP client's env config, never in code or shell history.
+
 ## License
 
 MIT
