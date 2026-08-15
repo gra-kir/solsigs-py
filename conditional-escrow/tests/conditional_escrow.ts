@@ -44,6 +44,15 @@ const CONDITIONAL = Buffer.from("conditional");
 const VAULT = Buffer.from("vault");
 const MIN_TTL_SECS = 60; // mirror of program constant (F5)
 
+// Headroom added to "short but valid" TTLs. `expiry` is computed from the local
+// clock when the tx is built, but F5 is checked against the on-chain clock when
+// it executes. On public devnet the gap between those two moments covers RPC
+// latency, 429 backoff retries, and validator clock skew (Clock::unix_timestamp
+// is only accurate to a few seconds), so a margin of 1-2s makes escrow creation
+// fail intermittently with ExpiryTooSoon — F5 working correctly against a
+// too-tight request. Tests that need a short TTL wait this out instead.
+const TTL_MARGIN_SECS = 20;
+
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const rand32 = () => Array.from(crypto.randomBytes(32));
 
@@ -248,8 +257,8 @@ describe("conditional_escrow (devnet)", () => {
 
   it("2. refund after expiry is PERMISSIONLESS -> funds back to payer", async function () {
     this.timeout(150000);
-    const e = await makeEscrow({ expiryOffsetSec: MIN_TTL_SECS + 2 });
-    await sleep((MIN_TTL_SECS + 8) * 1000); // let expiry pass
+    const e = await makeEscrow({ expiryOffsetSec: MIN_TTL_SECS + TTL_MARGIN_SECS });
+    await sleep((MIN_TTL_SECS + TTL_MARGIN_SECS + 8) * 1000); // let expiry pass
     const random = Keypair.generate();
     await fundSol(random.publicKey, 0.02);
     const before = await tokenBal(masterAta);
@@ -262,8 +271,8 @@ describe("conditional_escrow (devnet)", () => {
 
   it("3. release AFTER expiry is REJECTED", async function () {
     this.timeout(150000);
-    const e = await makeEscrow({ expiryOffsetSec: MIN_TTL_SECS + 2 });
-    await sleep((MIN_TTL_SECS + 8) * 1000);
+    const e = await makeEscrow({ expiryOffsetSec: MIN_TTL_SECS + TTL_MARGIN_SECS });
+    await sleep((MIN_TTL_SECS + TTL_MARGIN_SECS + 8) * 1000);
     await expectFail(doRelease(e), "release after expiry");
     record("3 release after expiry rejected", true);
     await doRefund(e, master).catch(() => {});
@@ -407,12 +416,12 @@ describe("conditional_escrow (devnet)", () => {
 
   it("F1b. donation-then-REFUND: payer receives amount + surplus; no revert", async function () {
     this.timeout(180000);
-    const e = await makeEscrow({ expiryOffsetSec: MIN_TTL_SECS + 2 });
+    const e = await makeEscrow({ expiryOffsetSec: MIN_TTL_SECS + TTL_MARGIN_SECS });
     await ensureAta(e.payer.publicKey, e.mint);
     const SURPLUS = 333_000;
     await splTransfer(connection, master, masterAta, e.vault, master, SURPLUS);
 
-    await sleep((MIN_TTL_SECS + 8) * 1000);
+    await sleep((MIN_TTL_SECS + TTL_MARGIN_SECS + 8) * 1000);
     const before = await tokenBal(masterAta);
     const random = Keypair.generate();
     await fundSol(random.publicKey, 0.02);
@@ -481,10 +490,10 @@ describe("conditional_escrow (devnet)", () => {
 
     // (c) exact boundary: escrow at exactly MIN_TTL, wait until now>=expiry, then
     //     release must be rejected (now < expiry false) and refund must work.
-    const e = await makeEscrow({ expiryOffsetSec: MIN_TTL_SECS });
+    const e = await makeEscrow({ expiryOffsetSec: MIN_TTL_SECS + TTL_MARGIN_SECS });
     await ensureAta(e.payTo, e.mint);
     await ensureAta(e.payer.publicKey, e.mint);
-    await sleep((MIN_TTL_SECS + 6) * 1000);
+    await sleep((MIN_TTL_SECS + TTL_MARGIN_SECS + 6) * 1000);
     await expectFail(doRelease(e), "release at/after exact expiry boundary");
     await doRefund(e, master); // permissionless after expiry
     assert.isNull(await connection.getAccountInfo(e.escrow), "escrow not closed by boundary refund");

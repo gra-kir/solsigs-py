@@ -23,23 +23,33 @@ amount, `conditional` decides whether delivery happened at all.
 > deployment and harness receipts further below were produced by the **original,
 > pre-fix** program.
 >
-> **Status of the fixed program.** It builds cleanly (`cargo build-sbf`) and the
-> full expanded suite — all 11 spec MUST-rules plus F1a/F1b/F3/F4/F5, the two
-> `pay_to` invariants, and the revival/F6 regression — now **passes 19/19
-> against a local validator** (`solana-test-validator` with the program loaded
-> at its declared id). That exercises program behavior, so the post-audit fixes
-> are verified functionally.
+> ✅ **The fixed program is now deployed and verified on devnet.**
 >
-> It has **still not been redeployed to devnet**, so the devnet receipts below
-> continue to reflect the pre-fix program. A fresh devnet deploy (new program
-> id; there is no upgrade authority for the original id) plus a re-run against
-> that deployment is required before the receipts match current behavior.
+> | | |
+> |---|---|
+> | **Program id (fixed)** | `7sWTb3Czsz2vV1RpYpgFtKNkEXGqjcEGCsa31zQKisa5` |
+> | ProgramData | `85T1QPE3hZj19a5EXSYM4fS16oPt9dw7jQExHJG19Afb` |
+> | Deploy signature | `3dTnkQg7vBKvKTFaLcmXy3XUmEo6t1UnxXz75p3kp7VqhWVGsdKbKPcaagVge9bwL3SQivA3k7w5xWCGth1kFZrC` |
+> | Result | **19/19 passing** against devnet |
+> | Old program id (pre-fix, immutable) | `Hy8Rh1zdWfXRJLaXtQGFBHUD6wyV7kxAwwGF4J8UsXvw` |
 >
-> Note: the suite did not compile as committed (a type error on the F6
-> regression's `program.account.escrow` access, since the program is built from
-> a runtime-loaded untyped IDL), which indicates the post-audit additions had
-> not been executed. That is fixed; the run above is the first green result for
-> the fixed program.
+> A new program id was required because the original has no upgrade authority.
+> The suite also passes 19/19 against a local validator. Receipts further below
+> that predate this section describe the **pre-fix** program at the old id.
+>
+> Two issues were fixed to get here, both in the test suite rather than the
+> program:
+>
+> 1. **The suite did not compile as committed** — a type error on the F6
+>    regression's `program.account.escrow` access (the program is built from a
+>    runtime-loaded untyped IDL). Because the test script chains `tsc && mocha`,
+>    this meant the post-audit additions had never been executed at all.
+> 2. **Short-TTL tests were too tight for public devnet.** They requested an
+>    expiry only 1–2s above `MIN_TTL_SECS`, computed from the local clock but
+>    validated by F5 against the on-chain clock at execution. RPC latency, 429
+>    backoffs, and validator clock skew routinely exceed that, so F5 correctly
+>    rejected the request and the test failed. Those tests now use
+>    `TTL_MARGIN_SECS` (20s) of headroom; all assertions are unchanged.
 
 > **Scope.** Standalone program; does not touch any SolSigs production service
 > (only outbound HTTPS calls to `solsigs.com`). Verified on **devnet**; a gated

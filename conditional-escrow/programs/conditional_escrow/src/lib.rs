@@ -20,7 +20,7 @@ use anchor_lang::prelude::*;
 use anchor_spl::associated_token::AssociatedToken;
 use anchor_spl::token::{self, CloseAccount, Mint, Token, TokenAccount, Transfer};
 
-declare_id!("Hy8Rh1zdWfXRJLaXtQGFBHUD6wyV7kxAwwGF4J8UsXvw");
+declare_id!("7sWTb3Czsz2vV1RpYpgFtKNkEXGqjcEGCsa31zQKisa5");
 
 /// Minimum escrow lifetime at creation (F5). `expiry_unix` must be at least this
 /// many seconds in the future. The on-chain clock (`Clock::unix_timestamp`) is
