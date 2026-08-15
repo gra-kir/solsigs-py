@@ -29,11 +29,15 @@ amount, `conditional` decides whether delivery happened at all.
 > |---|---|
 > | **Program id (fixed)** | `7sWTb3Czsz2vV1RpYpgFtKNkEXGqjcEGCsa31zQKisa5` |
 > | ProgramData | `85T1QPE3hZj19a5EXSYM4fS16oPt9dw7jQExHJG19Afb` |
+> | Upgrade authority | `HZAkkKbhN9hfJBiNxCuwap7XtPXgniy9MVjJR2MvHSJi` |
 > | Deploy signature | `3dTnkQg7vBKvKTFaLcmXy3XUmEo6t1UnxXz75p3kp7VqhWVGsdKbKPcaagVge9bwL3SQivA3k7w5xWCGth1kFZrC` |
 > | Result | **19/19 passing** against devnet |
 > | Old program id (pre-fix, immutable) | `Hy8Rh1zdWfXRJLaXtQGFBHUD6wyV7kxAwwGF4J8UsXvw` |
 >
 > A new program id was required because the original has no upgrade authority.
+> Unlike the original, this deployment **is** upgradeable — the authority above
+> is a durable wallet, so future fixes can upgrade in place instead of forcing
+> another new program id.
 > The suite also passes 19/19 against a local validator. Receipts further below
 > that predate this section describe the **pre-fix** program at the old id.
 >
