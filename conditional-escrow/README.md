@@ -21,11 +21,25 @@ amount, `conditional` decides whether delivery happened at all.
 > 🔧 **Audit findings applied (F1/F3/F4/F5 in code; F2/F6 in docs).** See
 > [Post-audit fixes](#post-audit-fixes). **Important:** the verified devnet
 > deployment and harness receipts further below were produced by the **original,
-> pre-fix** program. The fixed program in this commit has **not yet been
-> redeployed or re-verified on devnet** — it builds cleanly (`cargo build-sbf`),
-> but a fresh deploy (new program id; there is no upgrade authority for the
-> original id) plus a re-run of the expanded suite is required before those
-> receipts reflect current behavior.
+> pre-fix** program.
+>
+> **Status of the fixed program.** It builds cleanly (`cargo build-sbf`) and the
+> full expanded suite — all 11 spec MUST-rules plus F1a/F1b/F3/F4/F5, the two
+> `pay_to` invariants, and the revival/F6 regression — now **passes 19/19
+> against a local validator** (`solana-test-validator` with the program loaded
+> at its declared id). That exercises program behavior, so the post-audit fixes
+> are verified functionally.
+>
+> It has **still not been redeployed to devnet**, so the devnet receipts below
+> continue to reflect the pre-fix program. A fresh devnet deploy (new program
+> id; there is no upgrade authority for the original id) plus a re-run against
+> that deployment is required before the receipts match current behavior.
+>
+> Note: the suite did not compile as committed (a type error on the F6
+> regression's `program.account.escrow` access, since the program is built from
+> a runtime-loaded untyped IDL), which indicates the post-audit additions had
+> not been executed. That is fixed; the run above is the first green result for
+> the fixed program.
 
 > **Scope.** Standalone program; does not touch any SolSigs production service
 > (only outbound HTTPS calls to `solsigs.com`). Verified on **devnet**; a gated

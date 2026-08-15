@@ -547,7 +547,9 @@ describe("conditional_escrow (devnet)", () => {
 
     // F6: the freed (payer, pay_to, mint, payment_id) tuple can be initialized again.
     await init();
-    const reopened = await program.account.escrow.fetch(escrow);
+    // Program is constructed from a runtime-loaded IDL (untyped `Idl`), so the
+    // account namespace isn't statically aware of `escrow`.
+    const reopened = await (program.account as any).escrow.fetch(escrow);
     assert.equal(reopened.amount.toNumber(), AMOUNT, "re-init after close did not produce a fresh escrow");
     await doRelease(e); // clean up the reopened escrow
     record("REG revival impossible; re-init after close ok (documented F6)", true);
