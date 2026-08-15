@@ -29,6 +29,13 @@ SOLANA_RPC = os.environ.get("SOLANA_RPC_URL", "https://api.mainnet-beta.solana.c
 SOLSIGS_BASE = os.environ.get("SOLSIGS_BASE_URL", "https://solsigs.com")
 
 
+def _is_solana_network(network: str) -> bool:
+    """Match Solana networks in CAIP-2 ("solana:<genesis>") or label form
+    ("solana", "solana-devnet", "solana-mainnet")."""
+    n = (network or "").strip().lower()
+    return n == "solana" or n.startswith("solana:") or n.startswith("solana-")
+
+
 @dataclass
 class PaymentRequired:
     """Parsed x402 v2 PAYMENT-REQUIRED response."""
@@ -125,8 +132,17 @@ class X402Client:
         if not accepts:
             raise RuntimeError("No payment options in 402 response")
 
-        # Take the first (and usually only) payment option
-        option = accepts[0]
+        # Scan ALL payment options and pick Solana — multi-chain sellers may
+        # list Base (or others) first, so accepts[0] is not safe to assume.
+        option = next(
+            (o for o in accepts if _is_solana_network(o.get("network", ""))),
+            None,
+        )
+        if option is None:
+            networks = ", ".join(str(o.get("network", "unknown")) for o in accepts)
+            raise RuntimeError(
+                f"No Solana payment option in 402 response (networks offered: {networks})"
+            )
 
         return PaymentRequired(
             x402_version=decoded.get("x402Version", 0),
