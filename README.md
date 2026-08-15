@@ -68,11 +68,11 @@ The client handles the HTTP layer. Integrate your agent's Solana wallet for auto
 
 ## MCP Server
 
-SolSigs ships as an **MCP server** (Model Context Protocol) — Claude, Hermes, Cursor, and any MCP-compatible agent can call SolSigs tools natively.
+SolSigs ships as an **MCP server** (Model Context Protocol) — Claude, Cursor, and any MCP-compatible agent can call SolSigs tools natively.
 
 **Claude Desktop users:** use the `solsigs-mcp` command above (stdio bridge).
 
-**Hermes, Cursor, and other SSE-capable MCP clients:**
+**Cursor and other SSE-capable MCP clients:**
 
 ```json
 {

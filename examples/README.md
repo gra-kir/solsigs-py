@@ -10,8 +10,7 @@ A Claude AI agent that **pays for real-time Solana blockchain data** using x402 
 # Install
 pip install openai httpx
 
-# Get your API key from Hermes or OpenRouter
-hermes config show  # find openrouter.api_key
+# Get an API key from OpenRouter (openrouter.ai/keys)
 
 # Run (dry-run — no money spent)
 export OPENROUTER_API_KEY="sk-or-v1-..."

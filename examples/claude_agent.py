@@ -7,8 +7,8 @@ A Claude AI agent that pays for real-time Solana blockchain data
 using x402 micropayments on Solana. First autonomous agent that
 pays for on-chain data per-query.
 
-Powered by OpenRouter (routing to Claude), so it works immediately
-with your existing Hermes setup.
+Powered by OpenRouter (routing to Claude), so it works with any
+existing OpenRouter key.
 
 MODES:
   Dry-run (default):    Shows full flow — no payment key needed
@@ -16,8 +16,8 @@ MODES:
 
 QUICK START:
   pip install openai httpx
-  # Uses OpenRouter — just set OPENROUTER_API_KEY in .env
-  source ~/.hermes/.env 2>/dev/null
+  # Uses OpenRouter — just set OPENROUTER_API_KEY in your environment
+  export OPENROUTER_API_KEY="sk-or-v1-..."
   python examples/claude_agent.py
   python examples/claude_agent.py "Track new token launches last hour"
 
@@ -438,15 +438,15 @@ TOOL_MAP = {
 class ClaudeSolSigsAgent:
     """Claude agent that pays for Solana data via x402.
 
-    Uses OpenRouter to access Claude, so it works with your
-    existing OPENROUTER_API_KEY from Hermes config.
+    Uses OpenRouter to access Claude, so it works with any
+    existing OPENROUTER_API_KEY.
     Also supports native Anthropic via ANTHROPIC_API_KEY env.
     """
 
     def __init__(self, payer):
         self.payer = payer
 
-        # Try OpenRouter first (what Hermes uses), fall back to Anthropic
+        # Try OpenRouter first, fall back to Anthropic
         if os.environ.get("OPENROUTER_API_KEY"):
             self.client = OpenAI(
                 base_url="https://openrouter.ai/api/v1",
